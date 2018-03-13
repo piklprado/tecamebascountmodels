@@ -1,0 +1,314 @@
+---
+title: "Testes com modelo de contagem com detecção imperfeita"
+subtitle: "Competição entre Arcella e Pyxidicolla"
+author: "Paulo Inácio Prado"
+date: "`r format(Sys.time(), '%d de %B de %Y')`"
+output: 
+        rmdformats::readthedown:
+        self_contained: true
+        thumbnails: true
+        lightbox: true
+        gallery: false
+        highlight: tango
+        toc_depth: 4
+---
+
+```{r setup, echo=FALSE, warning=FALSE, message=F}
+library(knitr); library(zoo); library(xts);
+library(caTools);
+library(ggplot2)#; library(cowplot)
+library(gridExtra)
+library(dplyr); library(tidyr);
+library(rjags); library(R2jags);
+library(mcmcplots); library(superdiag)
+
+opts_chunk$set(fig.align = 'center', fig.show = 'hold',
+               fig.height = 4, warning = FALSE, message = FALSE,
+               error = FALSE, echo=FALSE)
+options(formatR.arrow = TRUE,width = 90, cache=TRUE)
+source("functions.R") ## auxiliary functions 
+```
+
+Os ajustes demoram e foram feitos no cluster. Os códigos destes ajustes
+estão na pasta "cluster". Os comandos abaixo carregam os binários com os resultados
+dos ajustes.
+
+```{r load model fits}
+load("cluster/arc1.RData")
+load("cluster/arc2.RData")
+load("cluster/arc3.RData")
+load("cluster/pyx1.RData")
+load("cluster/pyx2.RData")
+load("cluster/pyx3.RData")
+load("cluster/compfit1.RData")
+load("cluster/compfit2.RData")
+load("cluster/compfit3.RData")
+load("cluster/compfit4.RData")
+load("cluster/compfit5.RData")
+load("cluster/compfit6.RData")
+load("cluster/compfit7.RData")
+```
+
+# Single-species experiments
+
+```{r load data single-species experiments}
+## Tidy data table with all experiments
+pyx.ind <- read.csv2("../dados_giulia/pyx_ind.csv") %>%
+    gather(Pyx1A:Pyx3C, key=id, value=counts) %>%
+    mutate(batch=as.factor(substr(id,4,4)))
+arc.ind <- read.csv2("../dados_giulia/arc_ind.csv") %>%
+    gather(Arcella1A:Arcella3C, key=id, value=counts) %>%
+    mutate(batch=as.factor(substr(id,8,8)))
+## Separate matrices for each experiment
+pyx1 <- sel.ind(pyx.ind, 1)
+pyx2 <- sel.ind(pyx.ind, 2)
+pyx3 <- sel.ind(pyx.ind, 3)
+arc1 <- sel.ind(arc.ind, 1)
+arc2 <- sel.ind(arc.ind, 2)
+arc3 <- sel.ind(arc.ind, 3)
+```
+
+## Exploratórias
+
+### Pyxidicolla
+
+Note que nos experimentos 1 e 2 a população parece estourar a capacidade de suporte
+entre seis e sete dias, e depois retorna a ela. Isso pode ser assinatura
+de crescimento populacional muito rápido e/ou com *time delay*, que pode levar
+a dinâmicas que oscilam ou mesmo caos.
+
+```{r plot indi Pyx}
+pyx.ind %>% ggplot(aes(Time,counts)) +
+    geom_point()+
+    facet_wrap(~batch) +
+    theme_bw()
+```
+
+### Arcella
+
+```{r plot indi Arc}
+arc.ind %>% ggplot(aes(Time,counts)) +
+    geom_point()+
+    facet_wrap(~batch) +
+    theme_bw()
+```
+
+### Nota sobre densidade máxima teórica de cada espécie
+Para definir as distribuições a priori das capacidade de suporte considerei o seguinte para definir um valor máximo:
+
+* *Arcella* tem diâmetro de 57 micrômetros, o que dá uma área de `r pi*(57/2)^2` micrômetros quadrados. Assim, um chute para densidade máxima é que em $1 cm^2$ haveria `r 1e8/(pi*(57/2)^2)` indivíduos. A área do frasco de cultura
+é `r 90*0.25` cm2, o que poderia ser completamente coberto por cerca 
+de  `r round(100*90*.25/(pi*(57/2)^2),2)` milhões de células.
+* *Pyxidicolla* tem diâmetro de 5.3 micrômetros, o que dá uma área de `r pi*(5.3/2)^2` $\mu^2$. 
+Assim, um chute para densidade máxima é que em 1 $cm^2$ haveria `r 1e8/(pi*(5.3/2)^2)` indivíduos. 
+Assim a área do frasco de cultura poderia ser coberto por cerca 
+de  `r round(100*90*.25/(pi*(5.3/2)^2),2)` milhões de células.
+
+
+## Ajustes dos modelos
+
+
+### Diagnósticos
+
+#### Pixydicola
+
+```{r logistic plots}
+## Posteriors
+plot(as.mcmc(fit.P1)[,c("r", "k", "p")])
+plot(as.mcmc(fit.P2)[,c("r", "k", "p")])
+plot(as.mcmc(fit.P3)[,c("r", "k", "p")])
+
+plot(as.mcmc(fit.A1)[,c("r", "k", "p")])
+plot(as.mcmc(fit.A2)[,c("r", "k", "p")])
+plot(as.mcmc(fit.A3)[,c("r", "k", "p")])
+
+
+
+## Fitted x observed
+## Pyxidicolla
+## Experiment 1
+## Graficos
+
+pP1 <- p1(summary.df(fit.P1, data=pyx1)) + ggtitle("Pyx #1")
+pP2 <- p1(summary.df(fit.P2, data=pyx2))+ ggtitle("Pyx #2")
+pP3 <- p1(summary.df(fit.P3, data=pyx3))+ ggtitle("Pyx #3")
+
+## Arcella
+pA1 <- p1(summary.df(fit.A1, data=arc1)) + ggtitle("Arc #1")
+pA2 <- p1(summary.df(fit.A2, data=arc2))+ ggtitle("Arc #2")
+pA3 <- p1(summary.df(fit.A3, data=arc3))+ ggtitle("Arc #3")
+
+grid.arrange(pP1,  pA1, pP2, pA2, pP3, pA3)
+
+## Checking log-normality of polled posteriors
+## Pooled poteriors of the 3 experiments
+pk.P <- c(fit.P1$BUGSoutput$sims.list[["k"]],
+         fit.P2$BUGSoutput$sims.list[["k"]],
+         fit.P3$BUGSoutput$sims.list[["k"]])
+pr.P <- c(fit.P1$BUGSoutput$sims.list[["r"]],
+         fit.P2$BUGSoutput$sims.list[["r"]],
+         fit.P3$BUGSoutput$sims.list[["r"]])
+
+pk.A <- c(fit.A1$BUGSoutput$sims.list[["k"]],
+         fit.A2$BUGSoutput$sims.list[["k"]],
+         fit.A3$BUGSoutput$sims.list[["k"]])
+pr.A <- c(fit.A1$BUGSoutput$sims.list[["r"]],
+         fit.A2$BUGSoutput$sims.list[["r"]],
+         fit.A3$BUGSoutput$sims.list[["r"]])
+
+
+hist(log(pk.P))
+hist(log(pk.A))
+## Quantiles
+quantile(pk.P, c(0.005, 0.995))
+quantile(pk.A, c(0.005, 0.995))
+## For pyxidicolla posteriors are distinct
+## So, for the priors of the competition models we'll use
+## Pyxidicolla: lognormal fitted to experiment 3
+mean(log(fit.P3$BUGSoutput$sims.list[["k"]]))
+sd(log(fit.P3$BUGSoutput$sims.list[["k"]]))
+mean(log(fit.P3$BUGSoutput$sims.list[["r"]]))
+sd(log(fit.P3$BUGSoutput$sims.list[["r"]]))
+## Arcella: lognormal fitted to polled posteriors of the 3 experiments
+mean(log(pk.A))
+sd(log(pk.A))
+mean(log(pr.A))
+sd(log(pr.A))
+```
+
+
+```{r logistic posteriors}
+lista.single <- list(
+    Arc1=fit.A1$BUGSoutput$sims.list,
+    Arc2=fit.A2$BUGSoutput$sims.list,
+    Arc3=fit.A3$BUGSoutput$sims.list,
+    Pyx1=fit.P1$BUGSoutput$sims.list,
+    Pyx2=fit.P2$BUGSoutput$sims.list,
+    Pyx3=fit.P3$BUGSoutput$sims.list)
+par(mfrow=c(3,1), lwd=1.5)
+post.plot(lista.single,par.name="p",  legend=FALSE, xlab="Parameter value")
+post.plot(lista.single,par.name="k", legend=FALSE, xlab="Parameter value")
+post.plot(lista.single,par.name="r", xlab="Parameter value")
+par(mfrow=c(1,1))
+```
+
+
+# Experimentos de competição
+
+
+```{r competicao leitura dados}
+comp <- read.csv2("../dados_giulia/comp_counts_sintese_final.csv")
+experim1 <- sel.exp(comp, batch = 1)
+experim2 <- sel.exp(comp, batch = 2)
+experim3 <- sel.exp(comp, batch = 3)
+experim4 <- sel.exp(comp, batch = 4)
+experim5 <- sel.exp(comp, batch = 5)
+experim6 <- sel.exp(comp, batch = 6)
+experim7 <- sel.exp(comp, batch = 7)
+```
+
+## Exploratórias
+
+```{r competicao graficos exploratorios}
+comp.medias <- gather(comp, key=sp, value=abund, arc, pyx) %>%
+    filter(Time<20) %>%
+    group_by(Time, sp, batch) %>%
+    summarise(mean.ab = mean(abund), sd.ab=sd(abund))
+comp2 <- gather(comp, key=sp, value=abund, arc, pyx) %>%
+    filter(Time<20)
+comp2 %>%
+    ggplot(aes(Time, abund)) +
+    geom_point(aes(colour=sp)) +
+#    geom_line(aes(Time, mean.ab, colour=sp), comp.medias) +
+    facet_wrap(~ batch, scales="free_y") +
+    theme_bw()
+```
+
+## Modelos
+
+### Observado e previsto em cada experimento
+
+
+```{r competition obs x predicted counts}
+## Graficos
+pe1 <- p3(summary.df2(fit1, experim1)) + ggtitle("Experiment #1")
+pe2 <- p3(summary.df2(fit2, experim2)) + ggtitle("Experiment #2")
+pe3 <- p3(summary.df2(fit3, experim3)) + ggtitle("Experiment #3")
+pe4 <- p3(summary.df2(fit4, experim4)) + ggtitle("Experiment #4")
+pe5 <- p3(summary.df2(fit5, experim5)) + ggtitle("Experiment #5")
+pe6 <- p3(summary.df2(fit6, experim6)) + ggtitle("Experiment #6")
+pe7 <- p3(summary.df2(fit7, experim7)) + ggtitle("Experiment #7")
+grid.arrange(pe1,pe2,pe3,pe4,pe5,pe6,pe7)
+```
+
+```{r competition expected densities}
+pe1 <- sim.compet(fit1, experim1)
+## Graficos
+pe1 <- p2(summary.df2(fit1, experim1)) + ggtitle("Experiment #1")
+pe2 <- p2(summary.df2(fit2, experim2)) + ggtitle("Experiment #2")
+pe3 <- p2(summary.df2(fit3, experim3)) + ggtitle("Experiment #3")
+pe4 <- p2(summary.df2(fit4, experim4)) + ggtitle("Experiment #4")
+pe5 <- p2(summary.df2(fit5, experim5)) + ggtitle("Experiment #5")
+pe6 <- p2(summary.df2(fit6, experim6)) + ggtitle("Experiment #6")
+pe7 <- p2(summary.df2(fit7, experim7)) + ggtitle("Experiment #7")
+grid.arrange(pe1,pe2,pe3,pe4,pe5,pe6,pe7)
+```
+
+
+### Sobreposição das posteriors dos experimentos
+
+```{r overlap of posteriors}
+## Calculando sobreposicao de posteriores
+## Plot
+lista2 <- list(
+    Exp1=fit1$BUGSoutput$sims.list,
+    Exp2=fit2$BUGSoutput$sims.list,
+    Exp3=fit3$BUGSoutput$sims.list,
+    Exp4=fit4$BUGSoutput$sims.list,
+    Exp5=fit5$BUGSoutput$sims.list,
+    Exp6=fit6$BUGSoutput$sims.list,
+    Exp7=fit7$BUGSoutput$sims.list)
+par(mfrow=c(3,2), lwd=1.5)
+post.plot(lista2,par.name="kA", transf=TRUE, legend=FALSE, xlab="Log(Parameter value)")
+post.plot(lista2,par.name="kP", transf=TRUE, legend=FALSE, xlab="Log(Parameter value)")
+post.plot(lista2,par.name="rA", legend=FALSE, xlab="Parameter value")
+post.plot(lista2,par.name="rP", legend=FALSE, xlab="Parameter value")
+post.plot(lista2,par.name="aAP", legend=FALSE, xlab="Parameter value")
+post.plot(lista2,par.name="aPA")
+par(mfrow=c(1,1))
+
+## Calculo
+post.overl(fit1, fit2, par.name="aPA")
+post.overl(fit1, fit2, par.name="aAP")
+post.overl(fit1, fit2, par.name="rP")
+post.overl(fit1, fit5, par.name="kA")
+```
+
+
+### Diagnósticos
+
+```{r experiment 1 plots}
+plot(as.mcmc(fit1)[,c("rA", "rP", "kA", "kP")])
+plot(as.mcmc(fit1)[,c("aPA", "aAP", "pA", "pP")])
+plot(as.mcmc(fit1)[,c("rA", "rP", "kA", "kP")])
+plot(as.mcmc(fit1b)[,c("aPA", "aAP", "xA", "xP")])
+effectiveSize(as.mcmc(fit1)[,c("rA", "rP", "kA", "kP","aPA", "aAP", "pA", "pP")])
+gelman.diag(as.mcmc(fit1)[,c("rA", "rP", "kA", "kP","aPA", "aAP", "pA", "pP")])
+autocorr.plot(as.mcmc(fit1)[,c("rA", "rP", "kA", "kP","aPA", "aAP", "pA", "pP")])
+crosscorr.plot(as.mcmc(fit1)[,c("rA", "rP", "kA", "kP","aPA", "aAP", "pA", "pP")])
+traceplot(fit1, mfrow=c(4,2),
+          varname=c("rA", "rP", "kA", "kP","aPA", "aAP", "pA", "pP"))
+traceplot(fit1,
+          varname=c("kA"))
+## Density plots of each run
+denplot(as.mcmc(fit1), parms = c("rA", "rP", "kA", "kP","aPA", "aAP", "pA", "pP"))
+
+
+## Distribuicoes a posteriori dos parametros populacionais
+##plot(fit1)
+
+## Media a posteriori das probabilidades de detecção
+est.pA <- mean((fit1$BUGSoutput$sims.list$pA))
+est.pP <- mean((fit1$BUGSoutput$sims.list$pP))
+```
+

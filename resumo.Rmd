@@ -1,0 +1,376 @@
+---
+title: "Modelos Bayesianos de contagem com detecção imperfeita"
+subtitle: "Competição entre Arcella e Pyxidicula"
+author: "Paulo Inácio Prado"
+date: "`r format(Sys.time(), '%d de %B de %Y')`"
+output: 
+        rmdformats::readthedown:
+        self_contained: true
+        thumbnails: true
+        lightbox: true
+        gallery: false
+        highlight: tango
+        toc_depth: 4
+bibliography: referencias.bib		
+---
+
+```{r setup, echo=FALSE, warning=FALSE, message=F}
+library(knitr); library(zoo); library(xts);
+library(caTools);
+library(ggplot2)#; library(cowplot)
+library(gridExtra)
+library(dplyr); library(tidyr);
+library(rjags); library(R2jags);
+library(mcmcplots); library(superdiag)
+
+opts_chunk$set(fig.align = 'center', fig.show = 'hold',
+               fig.height = 4, warning = FALSE, message = FALSE,
+               error = FALSE, echo=FALSE)
+options(formatR.arrow = TRUE,width = 90, cache=TRUE, scipen=999)
+source("functions.R") ## auxiliary functions 
+```
+
+
+# Single-species experiments
+
+## Modelo
+
+Usei o modelo de [@hostetler2015]. A ideia deste tipo de modelo
+de contagem com detecção imperfeita é que os valores observados (no caso número de células)
+é resultado de dois processos: a dinâmica do sistema (no caso representada por uma logística)
+e os processos de amostragem que geram a contagem. A seguir descrevo cada um destes componentes do
+modelo
+
+### Nível da dinâmica do sistema
+
+A cada passo de tempo o tamanho esperado da população é dado por uma logística a tempo discreto:
+
+$$E[N_{t+1}] = N_t + (rN_t (1 - \frac{N_t}{K}))\Delta t$$
+
+Onde $E[N_{t+1}]$ é o tamanho esperado (ou média) da população no tempo $t+1$, $N_t$ o tamanho no tempo anterior,
+$r$ a taxa de crescimento intrínseco, $K$ a capacidade de suporte (me número de indivíduos) e $\Delta t$ o
+tamanho do intervalo de tempo entre $t$ e $t+1$ em dias (que deve ser pequeno para este modelo
+aproximar bem um processo contínuo.
+
+Para representar fontes de variação estocástica na dinâmica populacional,
+o tamanho da população no tempo $t+1$ segue uma distribuição Poisson, com
+média $E[N_{t+1}]$. Isso equivale a dizer que a cada passo de tempo o valor efetivo da
+população é sorteado de uma distribuição Poisson cuja média é o valor esperado pela
+logística. 
+
+### Nível da amostragem
+
+A contagem de células é uma amostra do total, na qual ainda é possível detectar
+apenas parte delas. Supondo que as regiões da placa que são inspecionadas são
+uma amostra ao acaso da população (já que a cultura e homogeneizada antes das contagens),
+o número de células na área amostrada segue uma distribuição
+Poisson, cuja média é
+
+$$E[n_t] = \frac{N_t}{A}{a}$$
+
+Onde $n_t$ é o número de células na amostra, $A$ é a área total da cultura 
+e $a$ a área amostrada. Este valor é apenas a densidade 
+de células multiplicado pela área observada.
+
+Deste total, uma proporção $p$ é detectada. Se estas detecções são eventos 
+independentes o número de células observado em cada amostra segue
+uma distribuição binomial, com probabilidade de sucesso (detectabilidade) $p$ e 
+número de tentativas $n_t$. Sob esta premissa, cada célula na área amostrada
+tem probabilidade $p$ de ser detectada e $1-p$ de não ser, e a média
+de células detectadas é $p n_t$.
+
+### Ajuste
+
+Fiz um ajuste Bayesiano deste modelo para cada experimento, usando MCMC, 
+implementado na liguagem [JAGS](http://www.uvm.edu/~bbeckage/Teaching/DataAnalysis/Manuals/manual.jags.pdf), com os pacotes 
+[rjags](https://cran.r-project.org/package=rjags) e [R2jags](https://cran.r-project.org/package=R2jags), do R.
+O código em jags do modelo está no arquivo [logistic2.jag](./cluster/logistic2.jag), no diretório *cluster*.
+
+#### Priors
+
+Usei distribuições a priori em geral pouco informativas, que foram:
+
+* $r$ : lognormal com parâmetros $\mu=-2$, $\sigma=2$
+* $K$ : uniforme entre $10$ e $100$ bilhões
+* $p$: uniforme entre $0.9$ e $1$
+
+
+Para definir as distribuições a priori das capacidade de suporte considerei o seguinte para definir um valor máximo:
+
+* *Arcella* tem diâmetro de 57 micrômetros, o que dá uma área de `r round(pi*(57/2)^2,2)` micrômetros quadrados. 
+Assim, um chute para densidade máxima é que em $1 cm^2$ haveria `r round(1e5/(pi*(57/2)^2),4)` mil indivíduos. 
+A área do frasco de cultura
+é `r 90*0.25` cm2, o que poderia ser completamente coberto por cerca 
+de  `r round(100*90*.25/(pi*(57/2)^2),2)` milhões de células.
+* *Pyxidicula* tem diâmetro de 5.3 micrômetros, o que dá uma área de `r round(pi*(5.3/2)^2,2)` $\mu^2$. 
+Assim, um chute para densidade máxima é que em 1 $cm^2$ haveria `r round(1e2/(pi*(5.3/2)^2),2)` milhões de indivíduos. 
+Assim a área do frasco de cultura poderia ser coberto por cerca 
+de  `r round(100*90*.25/(pi*(5.3/2)^2),2)` milhões de células.
+
+
+
+
+## Resultados
+
+Os ajustes demoram e foram feitos no cluster. Os códigos e os arquivos binários do R com resultados
+destes ajustes estão no diretório */home/paulo/lotka_volterra_tecamebas* do cluster Abacus 
+(são muito grandes para ficar no GitHub). 
+Os comandos abaixo carregam os binários com os resultados
+dos ajustes. Para funcionar vc tem que copiar os arquivos RData que estão no Abacus 
+para um diretório *cluster* em seu diretório de trabalho do R
+
+```{r load model fits, eval=FALSE, echo=TRUE}
+load("cluster/arc1.RData")
+load("cluster/arc2.RData")
+load("cluster/arc3.RData")
+load("cluster/pyx1.RData")
+load("cluster/pyx2.RData")
+load("cluster/pyx3.RData")
+load("cluster/compfit1.RData")
+load("cluster/compfit2.RData")
+load("cluster/compfit3.RData")
+load("cluster/compfit4.RData")
+load("cluster/compfit5.RData")
+load("cluster/compfit6.RData")
+load("cluster/compfit7.RData")
+```
+
+```{r load data single-species experiments}
+## Tidy data table with all experiments
+pyx.ind <- read.csv2("../dados_giulia/pyx_ind.csv") %>%
+    gather(Pyx1A:Pyx3C, key=id, value=counts) %>%
+    mutate(batch=as.factor(substr(id,4,4)))
+arc.ind <- read.csv2("../dados_giulia/arc_ind.csv") %>%
+    gather(Arcella1A:Arcella3C, key=id, value=counts) %>%
+    mutate(batch=as.factor(substr(id,8,8)))
+## Separate matrices for each experiment
+pyx1 <- sel.ind(pyx.ind, 1)
+pyx2 <- sel.ind(pyx.ind, 2)
+pyx3 <- sel.ind(pyx.ind, 3)
+arc1 <- sel.ind(arc.ind, 1)
+arc2 <- sel.ind(arc.ind, 2)
+arc3 <- sel.ind(arc.ind, 3)
+```
+### Observados e previstos
+
+A figura abaixo mostra os números de células nas amostras
+a cada tempo e o intervalo de bayesiano a 95% de probabilidade.
+
+Nos experimentos 1 e 2 o número de células de *Pyxidicola* 
+dá um pulo entre seis e sete dias, e depois cai. Isso pode ser assinatura
+de crescimento populacional muito rápido e/ou com *time delay*, que pode levar
+a dinâmicas que oscilam ou mesmo caos. Como o modelo logístico
+não tem estes componentes, não foi capaz de prever este comportamento.
+O valor de $K$ estimado nestes casos está próximo do valor em que
+a população parece estabilizar após 7 dias.  
+Para *Arcella* o modelo logístico deu bons ajustes.
+
+```{r single species obs x pred, fig.height=12}
+pP1 <- p1(summary.df(fit.P1, data=pyx1)) + ggtitle("Pyx #1")
+pP2 <- p1(summary.df(fit.P2, data=pyx2))+ ggtitle("Pyx #2")
+pP3 <- p1(summary.df(fit.P3, data=pyx3))+ ggtitle("Pyx #3")
+## Arcella
+pA1 <- p1(summary.df(fit.A1, data=arc1)) + ggtitle("Arc #1")
+pA2 <- p1(summary.df(fit.A2, data=arc2))+ ggtitle("Arc #2")
+pA3 <- p1(summary.df(fit.A3, data=arc3))+ ggtitle("Arc #3")
+grid.arrange(pP1,  pA1, pP2, pA2, pP3, pA3)
+```
+
+### Distribuições posteriores
+
+Abaixo a distribuições posteriores dos parâmetros dos modelos. 
+Os valores de $K$ estão em $cm^{-2}$.
+O que me chamou a atenção:
+
+* Quando deixo a priori da detecção entre zero e um o ajuste dá valores
+irrealistas, de detectabilidade muito baixa. Fixando no intervalo mais
+realista entre 0,9 e 1 temos posteriores com detecção próximo de um, em geral.
+Acho que isto não é um grande problema, pois parece que neste caso as detecções são de fato altas.
+* Para *Arcella* os três experimentos apontam para os mesmos valores de capacidade de
+suporte (média das posteriores em 
+`r round(mean(c(fit.A1$BUGSoutput$sims.list[["k"]], fit.A2$BUGSoutput$sims.list[["k"]],fit.A3$BUGSoutput$sims.list[["k"]])))`
+células $cm^{-2}$, com pequena variação).
+* Já para Pyxidicola cada experimento sustenta uma valor diferente de K, pois as
+distribuições posteriores não sobrepõem e têm médias que vão de
+`r round(mean(fit.P3$BUGSoutput$sims.list[["k"]]))` a 
+`r round(mean(fit.P1$BUGSoutput$sims.list[["k"]]))` células $cm^{-2}$. 
+* A taxa de crescimento intrínseco ($r$) estimada varia muito entre
+experimentos e espécies, mas em todos os casos, com valores médios entre 
+`r round(mean(fit.P3$BUGSoutput$sims.list[["r"]]),1)` e 
+`r round(mean(fit.P2$BUGSoutput$sims.list[["r"]]),1)`. 
+Por causa desta variação, não há uma tendência clara de que uma das espécies
+tenha sempre maiores valores de $r$.
+* Há mais incerteza nas estimativas dos valores de $r$ para *Arcella*,
+sendo o caso extremo o experimento 1, em que o o intervalo
+de credibilidade (95%) vai de
+`r round(unname(quantile(fit.A1$BUGSoutput$sims.list[["r"]],0.025)),1)`
+até 
+`r round(unname(quantile(fit.A1$BUGSoutput$sims.list[["r"]],0.975)),1)`.
+
+
+```{r logistic posteriors, fig.height=13.5}
+lista.single <- list(
+    Arc1=fit.A1$BUGSoutput$sims.list,
+    Arc2=fit.A2$BUGSoutput$sims.list,
+    Arc3=fit.A3$BUGSoutput$sims.list,
+    Pyx1=fit.P1$BUGSoutput$sims.list,
+    Pyx2=fit.P2$BUGSoutput$sims.list,
+    Pyx3=fit.P3$BUGSoutput$sims.list)
+par(mfrow=c(3,1), lwd=1.5)
+post.plot(lista.single,par.name="p",  legend=FALSE, xlab="Parameter value")
+post.plot(lista.single,par.name="k", legend=FALSE, xlab="Parameter value")
+post.plot(lista.single,par.name="r", xlab="Parameter value")
+par(mfrow=c(1,1))
+```
+
+
+# Experimentos de competição
+
+## Modelo
+
+O mesmo que para a logística, com a diferença que o tamanho esperado
+de cada população é dado pela equação de Lotka-Volterra:
+
+$$E[A_{t+1}] = A_t + (r_1A_t (1 - \frac{A_t+\alpha P_t}{K_1}))\Delta t$$
+
+$$E[P_{t+1}] = P_t + (r_2P_t (1 - \frac{P_t+\beta P_t}{K_2}))\Delta t$$
+
+Onde $A$ e $P$ são os tamanhos populacionais de *Arcella* e *Pyxidicula*,
+ e $\alpha$ e $\beta$ os coeficientes de competição interespecífica.
+
+## Ajuste
+Da mesma maneira. O código do modelo em jags está no arquivo [competition.jag](./cluster/competition.jag),
+no diretório *cluster*.
+
+#### Priors
+
+Para os parâmetros $r$ e $K$ tentei usar como priors as distribuições
+posteriores dos ajustes logísticos, combinadas. A log-normal
+foi um bom modelo para descrever as distribuições de $r$. E assim usei como priors
+as lognormais ajustadas às distribuições dos valores posteriores de $r$ dos três
+experimentos juntos.
+Para os valores de $K$ tentei a mesma abordagem mas os valores de $K$ ajustados foram absurdamente
+altos. Por isto optei por uma distribuição uniforme, que fixa um valor máximo. 
+Usei uniformes no intervalo e 1000 a 35000, que 
+parecia mais plausível pelas posteriores de $K$. 
+Para os coeficientes de competição usei lognormais com média
+correspondente á razão de tamanhos das duas espécies e variâncias muito
+grandes, para torná-las pouco informativas.
+
+```{r competicao leitura dados}
+comp <- read.csv2("../dados_giulia/comp_counts_sintese_final.csv")
+experim1 <- sel.exp(comp, batch = 1)
+experim2 <- sel.exp(comp, batch = 2)
+experim3 <- sel.exp(comp, batch = 3)
+experim4 <- sel.exp(comp, batch = 4)
+experim5 <- sel.exp(comp, batch = 5)
+experim6 <- sel.exp(comp, batch = 6)
+experim7 <- sel.exp(comp, batch = 7)
+```
+
+
+## Modelos
+
+
+### Observado e previsto em cada experimento
+
+* Os modelos fizeram ajustes razoáveis para todos os experimentos,
+apesar de algumas previsões terem bastante incerteza. 
+Ainda assim sempre é possível identificar as trajetórias
+previstas das populações (isto é, os intervalos de credibilidade
+não ocupam todo o gráfico, como tivemos em ajustes anteriores).
+
+* Nestes experimentos os tamanhos populacionais são
+consideravelmente menores do que nas culturas 
+monoespecíficas. *Arcella* isolada chegou estabilizou em 150-200 células,
+mas nestes experimentos nunca passou de 45 células. Os números 
+para *Pyxidicula* (exceto os picos no dia 7) são 400-750 contra
+um máximo de 125 células na presença de *Arcella*.
+
+* Há muita variação de comportamentos entre experimentos,
+como já discutimos. Os bons ajustes mostram que o modelo é capaz
+de descrever bem a dinâmica, mas com diferentes valores de parâmetros
+(a seguir)
+
+
+```{r competition obs x predicted counts, fig.height=13.5}
+## Graficos
+pe1 <- p3(summary.df2(fit1, experim1)) + ggtitle("Experiment #1") +
+    annotate("text", x = c(8,9.5), y = c(70,7.5),
+             label = c("Pyxidicula","Arcella"),
+             color=c("blue","red"), size = 4)
+pe2 <- p3(summary.df2(fit2, experim2)) + ggtitle("Experiment #2")
+pe3 <- p3(summary.df2(fit3, experim3)) + ggtitle("Experiment #3")
+pe4 <- p3(summary.df2(fit4, experim4)) + ggtitle("Experiment #4")
+pe5 <- p3(summary.df2(fit5, experim5)) + ggtitle("Experiment #5")
+pe6 <- p3(summary.df2(fit6, experim6)) + ggtitle("Experiment #6")
+pe7 <- p3(summary.df2(fit7, experim7)) + ggtitle("Experiment #7")
+grid.arrange(pe1,pe2,pe3,pe4,pe5,pe6,pe7, ncol=2)
+```
+
+### Distribuições posteriores dos parâmetros
+
+* Há enorme incerteza quanto aos valores de $k$ das duas espécies
+neste experimento (note que a escala das posteriores está em log). 
+Mesmo os limites inferiores dos intervalos de credibilidade
+são da ordem de milhares, bem acima do que é observado no experimentos.
+Uma explicação para isto é que dados não têm informação
+sobre este parâmetro, porque as populações estão muito longe da
+capacidade de suporte e/ou porque oscilam de maneiras que não são
+compatíveis com os valores de $K$ observados nos experimentos monoespecíficos.
+Em resumo, os dados não fornecem muita informação sobre $K$. Como os valores estimados
+estão muito altos, podemos considerar que no experimento as espécies estão sob pouco efeito
+da competição intra-específica.
+
+* Por outro lado, os valores de $r$ para as duas espécies foram bem menores 
+do que nas culturas monoespecíficas. Para *Arcella* as médias das posteriores
+foram cerca de cinco vezes menores. Para *Pyxidicula* pelo menos metade, exceto
+para o experimento 3, que teve média da mesma magnitude das monoculturas.
+
+* As posteriores indicam que há muito mais variação entre experimentos
+no valor de $r$ para *Pyxidicula*, comparado com *Arcella*. Assim, os experimentos
+em que esta espécie teve crescimento mais acelerado tiveram posteriores deste parâmetro com
+médias maiores (Experimentos 3, 4, e 1). Já para Arcella apenas os experimentos 3 e 4
+tiveram valores de $r$ menores que os demais. Estes são experimentos em que
+a população desta espécies parece se estabilizar em tamanhos bem abaixo dos
+de *Pyxidicula*.
+
+* Os coeficientes de competição foram estimados com margem razoável de
+incerteza e são compatíveis com o tamanho relativo das espécies. 
+Os coeficientes de *Arcella* sobre *Pyxidicula* é da ordem de unidades a uma dezena e
+o coeficiente de *Pyxidicula* sobre *Arcella* é da ordem de décimos. 
+A distribuições posteriores destes coeficientes de cada espécie são muito parecidas entre experimentos,
+com exceção do experimento 3, em que o efeito de *Arcella* sobre *Pyxidicula* foi
+consideravelmente maior que nos outros experimentos.
+
+```{r competition posteriors, fig.height=12}
+lista2 <- list(
+    Exp1=fit1$BUGSoutput$sims.list,
+    Exp2=fit2$BUGSoutput$sims.list,
+    Exp3=fit3$BUGSoutput$sims.list,
+    Exp4=fit4$BUGSoutput$sims.list,
+    Exp5=fit5$BUGSoutput$sims.list,
+    Exp6=fit6$BUGSoutput$sims.list,
+    Exp7=fit7$BUGSoutput$sims.list)
+par(mfrow=c(3,2), lwd=1.5)
+post.plot(lista2,par.name="kA", transf=TRUE, legend=FALSE, xlab="Log(Parameter value)")
+post.plot(lista2,par.name="kP", transf=TRUE, legend=FALSE, xlab="Log(Parameter value)")
+post.plot(lista2,par.name="rA", legend=FALSE, xlab="Parameter value")
+post.plot(lista2,par.name="rP", legend=FALSE, xlab="Parameter value")
+post.plot(lista2,par.name="aAP", legend=FALSE, xlab="Parameter value")
+post.plot(lista2,par.name="aPA")
+par(mfrow=c(1,1))
+```
+
+# Pontos a discutir
+
+* Grande redução das abundâncias quando as espécies são mantidas juntas.
+* Muita variação nas dinâmicas competitivas.
+* Segundo os modelos, os dois resultados acima explicam-se principalmente
+pela queda nas taxas de crescimento, e também por sua variação entre experimentos.
+Precisamos entender melhor este resultado, pois no modelo clássico Lotka-Volterra
+o parâmetro $r$ seria uma característica intrínseca da espécie, enquanto o ambiente poderia
+alterar mais facilmente $K$ e mesmo os coeficientes de competição.
+
+# References
+

@@ -1,0 +1,71 @@
+\documentclass[11pt, A4]{article}
+%\usepackage[brazil]{babel}
+\usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{url}
+\usepackage{Sweave}
+\usepackage{natbib}
+\usepackage{framed, color}
+\usepackage{xspace}
+\definecolor{shadecolor}{rgb}{0.9, 0.9, 0.9}
+\setlength{\parindent}{0pt}
+\setlength{\hoffset}{-0.5in}
+\setlength{\textwidth}{6in}
+\setlength{\voffset}{-0.1in}
+%\pdfpagewidth=\paperwidth
+%\pdfpageheight=\paperheight
+\newcommand{\R}{\textnormal{\sffamily\bfseries R}\xspace}
+% altered bc \sf is obsolete, see:
+% http://tex.stackexchange.com/questions/74478/latex-command-incantation-for-r 
+\newcommand{\code}[1]{\texttt{#1}}
+
+\begin{document}
+
+<<setup, include=FALSE, cache=FALSE>>=
+library(knitr); library(zoo); library(xts);
+library(caTools);
+library(ggplot2)#; library(cowplot)
+library(dplyr); library(tidyr);
+#library(rjags); library(R2jags);
+library(mcmcplots); library(superdiag)
+opts_chunk$set(fig.align = 'center', fig.show = 'hold', # fig.height = 4,
+               warning = FALSE, message = FALSE, error = FALSE, echo=FALSE)
+options(formatR.arrow = TRUE,width = 90)
+source("functions.R")
+load("cluster/arc1.RData")
+load("cluster/arc2.RData")
+load("cluster/arc3.RData")
+load("cluster/pyx1.RData")
+load("cluster/pyx2.RData")
+load("cluster/pyx3.RData")
+load("cluster/compfit1.RData")
+load("cluster/compfit2.RData")
+load("cluster/compfit3.RData")
+load("cluster/compfit4.RData")
+load("cluster/compfit5.RData")
+load("cluster/compfit6.RData")
+load("cluster/compfit7.RData")
+# set global chunk options
+@
+
+\title{Supplementary material -- Model fitting}
+\maketitle
+
+\section{Logistic growth}
+
+
+\subsection{Diagnostics}
+
+\subsection{Supplementary results}
+
+
+\section{Lotka-Volterra competition model}
+
+
+\subsection{Diagnostics}
+
+\subsection{Supplementary results}
+
+
+\end{document}

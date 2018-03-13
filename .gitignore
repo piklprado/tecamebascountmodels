@@ -1,0 +1,5 @@
+*.RData
+.RData
+.Rhistory
+*~
+cluster/oldies
