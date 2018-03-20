@@ -127,23 +127,26 @@ sim.logist <- function(obj, data, sampArea, totArea=0.25*90, N0=50, nrep=1000){
 }
 
 ## Simulates the competition dynamics
-compet1 <- function(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea=0.25*90, A0=50, P0=50){
+compet1 <- function(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea=0.25*90, A0=50, P0=50, obs=TRUE){
     A <- A0
     P <- P0
-    yA <- yP <- c()
+    lambA <- lambP <- yA <- yP <- c()
     for(t in 1:(length(dt))){
         muA <- A + (rA * A * (1 - ((A+aPA*P)/kA)))*dt[t]
         muP <- P + (rP * P * (1 - ((P+aAP*A)/kP)))*dt[t]
-        A <- rpois(1, muA)
-        P <- rpois(1, muP)
-        lambA <- A*sampArea/totArea
-        lambP <- P*sampArea/totArea
-        nA <- rpois(1,lambA)
-        nP <- rpois(1,lambP)
+        A <- ifelse(muA>0, rpois(1, muA),0)
+        P <- ifelse(muP>0, rpois(1, muP), 0)
+        lambA[t] <- A*sampArea/totArea
+        lambP[t] <- P*sampArea/totArea
+        nA <- rpois(1,lambA[t])
+        nP <- rpois(1,lambP[t])
         yA[t] <- rbinom(1, nA, pA)
         yP[t] <- rbinom(1, nP, pP)
     }
-    cbind(yA,yP)    
+    if(obs)
+        cbind(yA,yP)
+    else
+        cbind(lambA, lambP)
 }
 
 ## Posterior of competition, from expected posterior of expected population sizes
@@ -184,6 +187,71 @@ sim.compet <- function(obj, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0
     }
     results
 }
+
+## Same simulation, but from parameters r and k taken from the pure cultures experiments
+sim.compet2 <- function(obj1, obj2, obj3, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0=50, P0=50, nrep=1000, obs=FALSE){
+    if(missing(dt))
+        dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
+    results <- array( dim=c(length(dt), 2, nrep))
+    for(k in 1:nrep){
+        i <- sample(1:length(obj1$BUGSoutput$sims.list$rA), 1)
+        j <- sample(1:length(obj2$BUGSoutput$sims.list$r), 1)
+        z <- sample(1:length(obj3$BUGSoutput$sims.list$r), 1)
+        rA <- obj2$BUGSoutput$sims.list$r[j]
+        kA <- obj2$BUGSoutput$sims.list$k[j]
+        pA <- obj1$BUGSoutput$sims.list$pA[i]
+        rP <- obj3$BUGSoutput$sims.list$r[z]
+        kP <- obj3$BUGSoutput$sims.list$k[z]
+        pP <- obj1$BUGSoutput$sims.list$pP[i]
+        aPA <- obj1$BUGSoutput$sims.list$aPA[i]
+        aAP <- obj1$BUGSoutput$sims.list$aAP[i]    
+        results[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
+    }
+    results
+}
+
+## Same simulation, but from parameters r and k taken from the pure cultures experiments only for Arcella
+sim.compet3 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0=50, P0=50, nrep=1000, obs=FALSE){
+    if(missing(dt))
+        dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
+    results <- array( dim=c(length(dt), 2, nrep))
+    for(k in 1:nrep){
+        i <- sample(1:length(obj1$BUGSoutput$sims.list$rA), 1)
+        j <- sample(1:length(obj2$BUGSoutput$sims.list$r), 1)
+        rA <- obj2$BUGSoutput$sims.list$r[j]
+        kA <- obj2$BUGSoutput$sims.list$k[j]
+        pA <- obj1$BUGSoutput$sims.list$pA[i]
+        rP <- obj1$BUGSoutput$sims.list$rP[i]
+        kP <- obj1$BUGSoutput$sims.list$kP[i]
+        pP <- obj1$BUGSoutput$sims.list$pP[i]
+        aPA <- obj1$BUGSoutput$sims.list$aPA[i]
+        aAP <- obj1$BUGSoutput$sims.list$aAP[i]    
+        results[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
+    }
+    results
+}
+
+## Same simulation, but from parameters r and k taken from the pure cultures experiments only for Pixydiculla
+sim.compet4 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0=50, P0=50, nrep=1000, obs=FALSE){
+    if(missing(dt))
+        dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
+    results <- array( dim=c(length(dt), 2, nrep))
+    for(k in 1:nrep){
+        i <- sample(1:length(obj1$BUGSoutput$sims.list$rA), 1)
+        j <- sample(1:length(obj2$BUGSoutput$sims.list$r), 1)
+        rA <- obj1$BUGSoutput$sims.list$rA[i]
+        kA <- obj1$BUGSoutput$sims.list$kA[i]
+        pA <- obj1$BUGSoutput$sims.list$pA[i]
+        rP <- obj2$BUGSoutput$sims.list$r[j]
+        kP <- obj2$BUGSoutput$sims.list$k[j]
+        pP <- obj1$BUGSoutput$sims.list$pP[i]
+        aPA <- obj1$BUGSoutput$sims.list$aPA[i]
+        aAP <- obj1$BUGSoutput$sims.list$aAP[i]    
+        results[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
+    }
+    results
+}
+
 
 ## Simulates the competition dynamics modelled
 ## compet1 <- function(A0, P0, rA, rP, kA, kP, aPA, aAP, dt, nIntervals, nSamples, sampArea, totArea){

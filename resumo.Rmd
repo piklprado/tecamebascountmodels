@@ -22,7 +22,7 @@ library(gridExtra)
 library(dplyr); library(tidyr);
 library(rjags); library(R2jags);
 library(mcmcplots); library(superdiag)
-
+library(kableExtra)
 opts_chunk$set(fig.align = 'center', fig.show = 'hold',
                fig.height = 4, warning = FALSE, message = FALSE,
                error = FALSE, echo=FALSE)
@@ -362,15 +362,193 @@ post.plot(lista2,par.name="aPA")
 par(mfrow=c(1,1))
 ```
 
+# Simulações e matrizes de payoff
+
+
+```{r compet simul}
+sim.comb <- sapply(expand.grid(paste("fit",1:7, sep=""),
+                        paste("fit.A",1:3, sep=""),
+                        paste("fit.P",1:3, sep="")),
+                     as.character)
+
+nrep <- round(5000/nrow(sim.comb))
+sim.res <- array(dim=c(31,2,nrep*nrow(sim.comb)))
+for(i in 1:nrow(sim.comb)){
+    intervalo <- (i*nrep-(nrep-1)):(i*nrep)
+    sim.res[,,intervalo] <- do.call("sim.compet2",
+                                    args=list(obj1=eval(parse(text=sim.comb[i,1])), obj2=eval(parse(text=sim.comb[i,2])),
+                                              obj3=eval(parse(text=sim.comb[i,3])), data=experim1, nrep=nrep))
+    }
+
+```
+
+Em reunião 19/03/2018 Pan propôs a hipótese de que quando juntas
+as duas espécies teriam probabilidades altas de se extinguir se mantivessem
+suas taxas de crecimento intrínseco originais (observadas nas culturas puras).
+Assim, reduzir a reprodução seria uma adaptação para não correr este risco.
+
+Uma previsão desta hipótese é que as extinções devem ser um resultado
+frequente dos modelos de competição se usarmos nestes modelos os valores
+de $r$ e $K$ observados nas culturas puras. Para testar isto, 
+simulei estes modelos pelo mesmo tempo dos experimentos de competição,
+tomando os parâmetros das distribuições *a posteriori* obtidas
+com o ajuste bayesiano da seguinte forma:
+
+* Valores de $r$ e $K$ de cada espécie tomados das *posterioris* dos ajustes
+aos dados dos experimentos de cultura pura. 
+* Valores dos coeficientes de competição tomados das *posterioris* dos ajustes
+aos dados dos experimentos de competição.
+
+Os parâmetros de cada experimento foram tomados pareados (isto é, não sorteei
+independentemente um valor de $r$ e de $K$ para uma espécie, e sim sorteei um 
+par deste parâmetros da distribuição bivariada, para preservar sua eventual correlação).
+
+Com três experimentos de cultura pura por espécie e sete experimentos de competição
+é possível fazer `r nrow(sim.comb)` combinações de distribuições *a posteriori*. 
+De cada uma destas combinações de Tomei `r nrep` amostras.
+
+A proporção das simulações que tiveram populações extintas e não extintas
+de cada espécie foram:
+
+```{r tabela extincoes}
+t1 <- table(sim.res[31,1,]>0, sim.res[31,2,]>0)/(nrep*nrow(sim.comb))
+colnames(t1) <- c("N(Pyx) > 0", "N(Pyx) = 0")
+rownames(t1) <- c("N(Arc) > 0", "N(Arc) = 0")
+kable(t1, digits=3,
+      caption="Proporção de simulações do modelo de competição em a população de cada espécie chegou ao fim de 11.3 com tamanhos maiores que zero.")
+```
+
+O evento mais provável quando as duas espécies usam seus valores de $r$
+originais é a persistência de *Pyxidiculla* apenas, seguido
+pela extinção de ambas. Mais importante, as chances de extinção das
+duas espécies de aproximadamente 50%.
+
+## Matriz de *payoffs*
+
+Vamos supor que cada espécie tem a estratégia de manter $r$ alto ou baixo,
+e que fazem isto em reação ao que a outra está fazendo.
+Neste cenário simples podemos aplicar 
+[teoria de jogos básica](https://en.wikipedia.org/wiki/Normal-form_game)
+e montar as matrizes de *payoff* para cada espécie, que expressam
+o ganho de cada estratégia possível, para cada espécie.
+
+Para fazer isto, rodei as mesmas simulações acima, mas sorteando
+os parâmetros das *posterioris* para corresponder a cada
+uma das situações. Por exemplo, para
+simular uma situação em que *Arcella* mantém o $r$ alto mas não *Pyxidicolla*,
+sorteei os valores de $r$ e $k$ das *posterioris* dos experimentos de cultura pura
+de *Arcella*, mas os demais parâmetros das *posterioris* dos experimentos
+de competição.
+
+
+```{r compet simul payoffs}
+## As duas especies baixam o r
+sim.comb2 <- unique(sim.comb[,1])
+nrep <- round(5000/length(sim.comb2))
+sim.res2 <- array(dim=c(31,2,nrep*length(sim.comb2)))
+for(i in 1:length(sim.comb2)){
+    intervalo <- (i*nrep-(nrep-1)):(i*nrep)
+    sim.res2[,,intervalo] <- do.call("sim.compet",
+                                    args=list(obj=eval(parse(text=sim.comb2[i])), data=experim1, nrep=nrep))
+    }
+## Apenas Arcella baixa o r
+sim.comb3 <- sapply(expand.grid(paste("fit",1:7, sep=""),
+                        paste("fit.A",1:3, sep="")),
+                     as.character)
+
+nrep <- round(5000/nrow(sim.comb3))
+sim.res3 <- array(dim=c(31,2,nrep*nrow(sim.comb3)))
+for(i in 1:nrow(sim.comb3)){
+    intervalo <- (i*nrep-(nrep-1)):(i*nrep)
+    sim.res3[,,intervalo] <- do.call("sim.compet3",
+                                    args=list(obj1=eval(parse(text=sim.comb3[i,1])),
+                                              obj2=eval(parse(text=sim.comb3[i,2])),
+                                              data=experim1, nrep=nrep))
+    }
+
+## Apenas Pixydiculla baixa o r
+sim.comb4 <- sapply(expand.grid(paste("fit",1:7, sep=""),
+                        paste("fit.P",1:3, sep="")),
+                     as.character)
+
+nrep <- round(5000/nrow(sim.comb4))
+sim.res4 <- array(dim=c(31,2,nrep*nrow(sim.comb4)))
+for(i in 1:nrow(sim.comb4)){
+    intervalo <- (i*nrep-(nrep-1)):(i*nrep)
+    sim.res4[,,intervalo] <- do.call("sim.compet4",
+                                    args=list(obj1=eval(parse(text=sim.comb4[i,1])),
+                                              obj2=eval(parse(text=sim.comb4[i,2])),
+                                              data=experim1, nrep=nrep))
+    }
+```
+
+As tabelas de *payoff* mostram a probabilidade de persitência para cada espécie
+em cada combinação de estratégias:
+
+```{r tabela payoffs}
+## Arcella
+A.payoff <- matrix(
+    c(
+        sum(sim.res2[31,1,]>0)/dim(sim.res2)[3], # A baixo, P baixo
+        sum(sim.res4[31,1,]>0)/dim(sim.res4)[3], # A baixo, P alto
+        sum(sim.res3[31,1,]>0)/dim(sim.res3)[3], # A alto, P baixo
+        sum(sim.res[31,1,]>0)/dim(sim.res)[3] # A alto, P alto
+        ),
+    ncol=2,
+    dimnames=list(c("P r low", "P r high"), c("A r low", "A r high"))
+)
+## Pyxidicolla
+P.payoff <- matrix(
+    c(
+        sum(sim.res2[31,2,]>0)/dim(sim.res2)[3], # A baixo, P baixo
+        sum(sim.res4[31,2,]>0)/dim(sim.res4)[3], # A baixo, P alto
+        sum(sim.res3[31,2,]>0)/dim(sim.res3)[3], # A alto, P baixo
+        sum(sim.res[31,2,]>0)/dim(sim.res)[3] # A alto, P alto
+        ),
+    ncol=2,
+    dimnames=list(c("P r low", "P r high"), c("A r low", "A r high"))
+)
+```
+
+### Arcella
+
+
+```{r arcella payoff}
+kable(A.payoff, digits=4, caption="Arcella - probabilidades estimadas de persistência")
+```
+
+Nesta tabela os valores na primeira linha são maiores que os valores
+na segunda linha, em cada coluna. Isto quer dizer que, sob qualquer estratégia de *Pyxidiculla*
+a estatégia que dá maiores probabilidades de persistência para *Arcella* é sempre a da primeira 
+linha, ou seja, manter o $r$ baixo.
+
+### Pyxidiculla
+
+```{r Pixydiculla payoff}
+kable(P.payoff, digits=4, caption="Pixydiculla - probabilidades estimadas de persistência")
+```
+
+Da mesma forma, nesta tabela os valores da primeira coluna de cada linha são os maiores. 
+Ou seja, para qualquer estratégia de *Arcella*
+a estatégia que dá maiores probabilidades de persistência para *Pyxidiculla* 
+também é manter o $r$ baixo.
+
+## Conclusão
+
+Temos um [Equilíbrio de Nash](https://en.wikipedia.org/wiki/Nash_equilibrium),
+com as duas espécies em estratégia de manter baixos crescimentos populacionais.
+Isto é coerente com a observação de valores de $r$ baixos das duas espécies em
+todos os experimentos de competição, exceto o experimento 3.
+
 # Pontos a discutir
 
-* Grande redução das abundâncias quando as espécies são mantidas juntas.
+* Grande redução das abundâncias quando as espécies são mantidas juntas. OK
 * Muita variação nas dinâmicas competitivas.
 * Segundo os modelos, os dois resultados acima explicam-se principalmente
 pela queda nas taxas de crescimento, e também por sua variação entre experimentos.
 Precisamos entender melhor este resultado, pois no modelo clássico Lotka-Volterra
 o parâmetro $r$ seria uma característica intrínseca da espécie, enquanto o ambiente poderia
-alterar mais facilmente $K$ e mesmo os coeficientes de competição.
+alterar mais facilmente $K$ e mesmo os coeficientes de competição. OK
 
 # References
 
