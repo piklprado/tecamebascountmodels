@@ -22,7 +22,6 @@ library(gridExtra)
 library(dplyr); library(tidyr);
 library(rjags); library(R2jags);
 library(mcmcplots); library(superdiag)
-library(kableExtra)
 opts_chunk$set(fig.align = 'center', fig.show = 'hold',
                fig.height = 4, warning = FALSE, message = FALSE,
                error = FALSE, echo=FALSE)
@@ -82,7 +81,7 @@ de células detectadas é $p n_t$.
 ### Ajuste
 
 Fiz um ajuste Bayesiano deste modelo para cada experimento, usando MCMC, 
-implementado na liguagem [JAGS](http://www.uvm.edu/~bbeckage/Teaching/DataAnalysis/Manuals/manual.jags.pdf), com os pacotes 
+implementado na linguagem [JAGS](http://www.uvm.edu/~bbeckage/Teaching/DataAnalysis/Manuals/manual.jags.pdf), com os pacotes 
 [rjags](https://cran.r-project.org/package=rjags) e [R2jags](https://cran.r-project.org/package=R2jags), do R.
 O código em jags do modelo está no arquivo [logistic2.jag](./cluster/logistic2.jag), no diretório *cluster*.
 
@@ -154,9 +153,9 @@ arc3 <- sel.ind(arc.ind, 3)
 ### Observados e previstos
 
 A figura abaixo mostra os números de células nas amostras
-a cada tempo e o intervalo de bayesiano a 95% de probabilidade.
+a cada tempo e o intervalo de Bayesiano a 95% de probabilidade.
 
-Nos experimentos 1 e 2 o número de células de *Pyxidicola* 
+Nos experimentos 1 e 2 o número de células de *Pyxidicula* 
 dá um pulo entre seis e sete dias, e depois cai. Isso pode ser assinatura
 de crescimento populacional muito rápido e/ou com *time delay*, que pode levar
 a dinâmicas que oscilam ou mesmo caos. Como o modelo logístico
@@ -190,7 +189,7 @@ Acho que isto não é um grande problema, pois parece que neste caso as detecç�
 suporte (média das posteriores em 
 `r round(mean(c(fit.A1$BUGSoutput$sims.list[["k"]], fit.A2$BUGSoutput$sims.list[["k"]],fit.A3$BUGSoutput$sims.list[["k"]])))`
 células $cm^{-2}$, com pequena variação).
-* Já para Pyxidicola cada experimento sustenta uma valor diferente de K, pois as
+* Já para Pyxidicula cada experimento sustenta uma valor diferente de K, pois as
 distribuições posteriores não sobrepõem e têm médias que vão de
 `r round(mean(fit.P3$BUGSoutput$sims.list[["k"]]))` a 
 `r round(mean(fit.P1$BUGSoutput$sims.list[["k"]]))` células $cm^{-2}$. 
@@ -245,7 +244,7 @@ no diretório *cluster*.
 #### Priors
 
 Para os parâmetros $r$ e $K$ tentei usar como priors as distribuições
-posteriores dos ajustes logísticos, combinadas. A log-normal
+posteriores dos ajustes logísticos, combinadas. A lognormal
 foi um bom modelo para descrever as distribuições de $r$. E assim usei como priors
 as lognormais ajustadas às distribuições dos valores posteriores de $r$ dos três
 experimentos juntos.
@@ -362,7 +361,7 @@ post.plot(lista2,par.name="aPA")
 par(mfrow=c(1,1))
 ```
 
-# Simulações e matrizes de payoff
+# Uma hipótese de jogo evolutivo
 
 
 ```{r compet simul}
@@ -372,19 +371,34 @@ sim.comb <- sapply(expand.grid(paste("fit",1:7, sep=""),
                      as.character)
 
 nrep <- round(5000/nrow(sim.comb))
-sim.res <- array(dim=c(31,2,nrep*nrow(sim.comb)))
+sim.res.e <- matrix(NA, 2, nrep*nrow(sim.comb))
 for(i in 1:nrow(sim.comb)){
     intervalo <- (i*nrep-(nrep-1)):(i*nrep)
-    sim.res[,,intervalo] <- do.call("sim.compet2",
+    sim.res.e[,intervalo] <- do.call("sim.compet2",
                                     args=list(obj1=eval(parse(text=sim.comb[i,1])), obj2=eval(parse(text=sim.comb[i,2])),
-                                              obj3=eval(parse(text=sim.comb[i,3])), data=experim1, nrep=nrep))
+                                              obj3=eval(parse(text=sim.comb[i,3])),
+                                              data=experim1, nrep=nrep))$estocast[ncol(experim1[[1]]),,]
     }
 
+## Repetindo para 60 dias
+nrep <- round(5000/nrow(sim.comb))
+sim.res <- matrix(NA, 2, nrep*nrow(sim.comb))
+sim.res.a <- matrix(NA, nrep*nrow(sim.comb), 3)
+dt <- rep(1/5, 300)
+for(i in 1:nrow(sim.comb)){
+    intervalo <- (i*nrep-(nrep-1)):(i*nrep)
+    tmp <- do.call("sim.compet2",
+                   args=list(obj1=eval(parse(text=sim.comb[i,1])), obj2=eval(parse(text=sim.comb[i,2])),
+                             obj3=eval(parse(text=sim.comb[i,3])),
+                             data=experim1, nrep=nrep, dt=dt))
+    sim.res[,intervalo] <- tmp$estocast[length(dt),,]
+    sim.res.a[intervalo, ] <- tmp$analitico
+    }
 ```
 
 Em reunião 19/03/2018 Pan propôs a hipótese de que quando juntas
 as duas espécies teriam probabilidades altas de se extinguir se mantivessem
-suas taxas de crecimento intrínseco originais (observadas nas culturas puras).
+suas taxas de crescimento intrínseco originais (observadas nas culturas puras).
 Assim, reduzir a reprodução seria uma adaptação para não correr este risco.
 
 Uma previsão desta hipótese é que as extinções devem ser um resultado
@@ -392,7 +406,7 @@ frequente dos modelos de competição se usarmos nestes modelos os valores
 de $r$ e $K$ observados nas culturas puras. Para testar isto, 
 simulei estes modelos pelo mesmo tempo dos experimentos de competição,
 tomando os parâmetros das distribuições *a posteriori* obtidas
-com o ajuste bayesiano da seguinte forma:
+com o ajuste Bayesiano da seguinte forma:
 
 * Valores de $r$ e $K$ de cada espécie tomados das *posterioris* dos ajustes
 aos dados dos experimentos de cultura pura. 
@@ -408,22 +422,77 @@ Com três experimentos de cultura pura por espécie e sete experimentos de compe
 De cada uma destas combinações de Tomei `r nrep` amostras.
 
 A proporção das simulações que tiveram populações extintas e não extintas
-de cada espécie foram:
+de cada espécie no tempo de um experimento foram:
 
 ```{r tabela extincoes}
-t1 <- table(sim.res[31,1,]>0, sim.res[31,2,]>0)/(nrep*nrow(sim.comb))
-colnames(t1) <- c("N(Pyx) > 0", "N(Pyx) = 0")
-rownames(t1) <- c("N(Arc) > 0", "N(Arc) = 0")
+t1 <- table(sim.res.e[1,]>0, sim.res[2,]>0)/(nrep*nrow(sim.comb))
+colnames(t1) <- c("N(Pyx) = 0", "N(Pyx) > 0")
+rownames(t1) <- c("N(Arc) = 0", "N(Arc) > 0")
 kable(t1, digits=3,
-      caption="Proporção de simulações do modelo de competição em a população de cada espécie chegou ao fim de 11.3 com tamanhos maiores que zero.")
+      caption="Proporção de simulações do modelo de competição em a população de cada espécie chegou ao fim de 11.3 dias com tamanhos maiores que zero.")
 ```
 
 O evento mais provável quando as duas espécies usam seus valores de $r$
-originais é a persistência de *Pyxidiculla* apenas, seguido
-pela extinção de ambas. Mais importante, as chances de extinção das
-duas espécies de aproximadamente 50%.
+originais é a persistência de *Pyxidicula* apenas, seguido
+pela coexistência. A co-extinção e a persistência 
+apenas de *Arcella* têm baixa probabilidade.
+
+Mas quando prolongamos a simulação para 60 dias
+a probabilidade de coexistência cai e a de persistência
+de apenas uma das espécies aumenta, o que sugere que
+a coexistência a longo prazo não é possível.
+
+```{r tabela extincoes 60 dias}
+t1m <- table(sim.res[1,]>0, sim.res[2,]>0)/(nrep*nrow(sim.comb))
+colnames(t1m) <- c("N(Pyx) = 0", "N(Pyx) > 0")
+rownames(t1m) <- c("N(Arc) = 0", "N(Arc) > 0")
+kable(t1m, digits=3,
+      caption="Proporção de simulações do modelo de competição em a população de cada espécie chegou ao fim de 60 dias com tamanhos maiores que zero.")
+```
+
+#### Modelos sem estocasticidade
+
+Para avaliar se a estocasticidade altera o efeito,
+também calculei os tamanho das populações no equilíbrio
+segundo o modelo Lotka-Volterra sem estocasticidades.
+Estes valores no equilíbrio são:
+
+$$\hat A  =  \frac{K_1-\alpha K_2}{1-\alpha \beta}$$
+
+
+$$\hat P  =  \frac{K_2-\beta K_1}{1-\alpha \beta}$$
+
+E caso ambos sejam positivos o equilíbrio será estável se
+
+$$\frac{1}{\beta} \ < \ \frac{K_1}{K_2} \ < \ \alpha$$
+
+
+Então calculei estes valores de outras 5000 combinações de parâmetros sorteadas das posteriores
+da mesma maneira. A proporção destas combinações que resultam em tamanho populacionais
+no equilíbrio maior que zero e que cumprem a condição de estabilidade estimam as probabilidades
+de persistência e extinção no equilíbrio, sob este modelo. 
+
+
+```{r solucao analitica}
+t1a <- table(sim.res.a[,1]>0, sim.res.a[,2]>0)/(nrep*nrow(sim.comb))
+nce <- sum(sim.res.a[,1]>0 & sim.res.a[,2]>0 & !sim.res.a[,3])
+t1a[1,1] <- t1a[1,1]-nce/(nrep*nrow(sim.comb))
+t1a[1,2] <- t1a[1,2]+nce/(nrep*nrow(sim.comb)*2)
+t1a[2,1] <- t1a[2,1]+nce/(nrep*nrow(sim.comb)*2)
+colnames(t1a) <- c("N(Pyx) = 0", "N(Pyx) > 0")
+rownames(t1a) <- c("N(Arc) = 0", "N(Arc) > 0")
+kable(t1a, digits=3,
+      caption="Proporção das combinações de parâmetros estimados em que  a população de cada espécie persiste, sob o modelo determinístico de competição.")
+```
+
+Estes valores indicam que a coexistência não
+deveria ocorrer, ou é pouquíssimo provável, 
+caso as duas espécies mantivessem os valores de
+$K$ e $r$ observados nas culturas puras.
+
 
 ## Matriz de *payoffs*
+
 
 Vamos supor que cada espécie tem a estratégia de manter $r$ alto ou baixo,
 e que fazem isto em reação ao que a outra está fazendo.
@@ -432,113 +501,172 @@ Neste cenário simples podemos aplicar
 e montar as matrizes de *payoff* para cada espécie, que expressam
 o ganho de cada estratégia possível, para cada espécie.
 
-Para fazer isto, rodei as mesmas simulações acima, mas sorteando
+Para fazer isto, rodei as mesmas simulações de Lotka-Volterra, mas sorteando
 os parâmetros das *posterioris* para corresponder a cada
 uma das situações. Por exemplo, para
-simular uma situação em que *Arcella* mantém o $r$ alto mas não *Pyxidicolla*,
+simular uma situação em que *Arcella* mantém o $r$ alto mas não *Pyxidicula*,
 sorteei os valores de $r$ e $k$ das *posterioris* dos experimentos de cultura pura
 de *Arcella*, mas os demais parâmetros das *posterioris* dos experimentos
-de competição.
+de competição. Para simular a situação em que apenas *Pyxidicula* mantém o $r$
+alto fiz o contrário. Antes de detalhar estes procedimentos vai uma
+explicação de como analisei as matrizes de *payoff* obtidas assim.
 
 
-```{r compet simul payoffs}
-## As duas especies baixam o r
-sim.comb2 <- unique(sim.comb[,1])
-nrep <- round(5000/length(sim.comb2))
-sim.res2 <- array(dim=c(31,2,nrep*length(sim.comb2)))
-for(i in 1:length(sim.comb2)){
-    intervalo <- (i*nrep-(nrep-1)):(i*nrep)
-    sim.res2[,,intervalo] <- do.call("sim.compet",
-                                    args=list(obj=eval(parse(text=sim.comb2[i])), data=experim1, nrep=nrep))
-    }
-## Apenas Arcella baixa o r
-sim.comb3 <- sapply(expand.grid(paste("fit",1:7, sep=""),
-                        paste("fit.A",1:3, sep="")),
-                     as.character)
 
-nrep <- round(5000/nrow(sim.comb3))
-sim.res3 <- array(dim=c(31,2,nrep*nrow(sim.comb3)))
-for(i in 1:nrow(sim.comb3)){
-    intervalo <- (i*nrep-(nrep-1)):(i*nrep)
-    sim.res3[,,intervalo] <- do.call("sim.compet3",
-                                    args=list(obj1=eval(parse(text=sim.comb3[i,1])),
-                                              obj2=eval(parse(text=sim.comb3[i,2])),
-                                              data=experim1, nrep=nrep))
-    }
-
-## Apenas Pixydiculla baixa o r
-sim.comb4 <- sapply(expand.grid(paste("fit",1:7, sep=""),
-                        paste("fit.P",1:3, sep="")),
-                     as.character)
-
-nrep <- round(5000/nrow(sim.comb4))
-sim.res4 <- array(dim=c(31,2,nrep*nrow(sim.comb4)))
-for(i in 1:nrow(sim.comb4)){
-    intervalo <- (i*nrep-(nrep-1)):(i*nrep)
-    sim.res4[,,intervalo] <- do.call("sim.compet4",
-                                    args=list(obj1=eval(parse(text=sim.comb4[i,1])),
-                                              obj2=eval(parse(text=sim.comb4[i,2])),
-                                              data=experim1, nrep=nrep))
-    }
+```{r posterior payoffs, eval=FALSE}
+## Codigo para rodar as matrizes de payoff a posteriori
+## Um pouco lento, está paralelizado
+source("postNash.R")
 ```
 
-As tabelas de *payoff* mostram a probabilidade de persitência para cada espécie
-em cada combinação de estratégias:
-
-```{r tabela payoffs}
-## Arcella
-A.payoff <- matrix(
-    c(
-        sum(sim.res2[31,1,]>0)/dim(sim.res2)[3], # A baixo, P baixo
-        sum(sim.res4[31,1,]>0)/dim(sim.res4)[3], # A baixo, P alto
-        sum(sim.res3[31,1,]>0)/dim(sim.res3)[3], # A alto, P baixo
-        sum(sim.res[31,1,]>0)/dim(sim.res)[3] # A alto, P alto
-        ),
-    ncol=2,
-    dimnames=list(c("P r low", "P r high"), c("A r low", "A r high"))
-)
-## Pyxidicolla
-P.payoff <- matrix(
-    c(
-        sum(sim.res2[31,2,]>0)/dim(sim.res2)[3], # A baixo, P baixo
-        sum(sim.res4[31,2,]>0)/dim(sim.res4)[3], # A baixo, P alto
-        sum(sim.res3[31,2,]>0)/dim(sim.res3)[3], # A alto, P baixo
-        sum(sim.res[31,2,]>0)/dim(sim.res)[3] # A alto, P alto
-        ),
-    ncol=2,
-    dimnames=list(c("P r low", "P r high"), c("A r low", "A r high"))
-)
-```
-
-### Arcella
+### Critérios de equilíbrio
 
 
-```{r arcella payoff}
-kable(A.payoff, digits=4, caption="Arcella - probabilidades estimadas de persistência")
-```
+As tabelas de *payoff* mostram o ganho para cada espécie
+em cada combinação de estratégias. Este ganho pode ser por exemplo a probabilidade de persistência ou o 
+tamanho da população após um certo tempo. A seguir um exemplo destas matrizes:
 
-Nesta tabela os valores na primeira linha são maiores que os valores
-na segunda linha, em cada coluna. Isto quer dizer que, sob qualquer estratégia de *Pyxidiculla*
-a estatégia que dá maiores probabilidades de persistência para *Arcella* é sempre a da primeira 
-linha, ou seja, manter o $r$ baixo.
+![Exemplo de matrizes de payoff para dois jogadores cada um com duas estratégias](nash_equilibria.png)
 
-### Pyxidiculla
+Nesta tabela os valores de payoff para *Arcella* (vermelho) na primeira linha são maiores que os valores
+na segunda linha, em cada coluna. Isto quer dizer que para esta combinação de parâmetros 
+a estratégia mais vantajosa para  *Arcella* é sempre a da primeira 
+linha, ou seja, manter o $r$ baixo, independente da estratégia de *Pyxidicula*
 
-```{r Pixydiculla payoff}
-kable(P.payoff, digits=4, caption="Pixydiculla - probabilidades estimadas de persistência")
-```
-
-Da mesma forma, nesta tabela os valores da primeira coluna de cada linha são os maiores. 
+Da mesma forma, os valores para *Pyxidicula* (azul) 
+da primeira coluna de cada linha são os maiores. 
 Ou seja, para qualquer estratégia de *Arcella*
-a estatégia que dá maiores probabilidades de persistência para *Pyxidiculla* 
+a estratégia mais vantajosa  para *Pyxidicula* 
 também é manter o $r$ baixo.
 
-## Conclusão
-
-Temos um [Equilíbrio de Nash](https://en.wikipedia.org/wiki/Nash_equilibrium),
+Neste caso temos um [Equilíbrio de Nash](https://en.wikipedia.org/wiki/Nash_equilibrium),
 com as duas espécies em estratégia de manter baixos crescimentos populacionais.
-Isto é coerente com a observação de valores de $r$ baixos das duas espécies em
-todos os experimentos de competição, exceto o experimento 3.
+
+#### Equilíbrio geral
+
+Há condições de equilíbrio de estratégias menos estritas que as de Nash,
+porque mesmo sem esta condição 
+é possível que uma ou mais estratégias 
+sejam estáveis. 
+Por exemplo, para as matrizes a seguir há dois equilíbrios,
+definidos como combinações de estratégias em que nenhuma das duas espécies
+consegue aumentar seu *payoff* se mudar de estratégia, se a outra espécie
+não mudar:
+
+![Matrizes de payoff com dois equilíbrios](multiple_equilibria.png)
+
+Os equilíbrios são ambas as espécies com baixo $r$ (Low/Low) ou
+ambas com $r$ alto (High/High). Note que nestes dois casos a mudança
+de estratégia leva a um benefício igual ou menor.
+
+
+## Probabilidades de equilíbrio de cada estratégia
+
+Nesta seção uso os critérios de equilíbrio definidos acima para 
+analisar as matrizes de *payoff* obtidas com as simulações.
+
+Chamo aqui "combinação de parâmetros" um conjunto de valores dos parâmetros
+tomados das posteriores dos experimentos de competição, e tomados das posteriores
+dos experimentos de culturas puras. Para cada combinação desta repeti a simulação 100 vezes e 
+com isso montei duas matrizes de *payoffs*:
+
+* Probabilidade de persistência: proporção das 100 réplicas de simulações com os mesmos parâmetros 
+em que cada espécie tinha população maior que zero ao fim da simulação.
+* Tamanho populacional médio: média dos tamanhos populacionais nas 100 réplicas ao fim de cada simulação.
+
+Simulei 20 combinações de parâmetros para cada uma das `r nrow(sim.comb)`
+combinações possíveis das 7 posteriores dos experimentos de competição com
+as 3 posteriores de cada experimento de cultura pura. Ainda, testei simulações
+que terminavam após o tempo que duraram os experimentos de competição 
+( `r max(as.numeric(colnames(experim1[[1]])))` dias), 60 e 120 dias, a intervalos
+de $1/3$ de dia[^1].
+
+Em resumo, para cada combinação de parâmetros obtive então uma matriz de *payoffs*
+de persistência e outra de tamanho populacional. Verifiquei em cada uma destas matrizes
+quais eram as combinações em equilíbrio de Nash e em equilíbrio senso geral,
+como defini acima. As proporções das matrizes em que cada estratégia cumpriu os requisitos de um 
+destes equilíbrios estimam as probabilidades posteriores destes equilíbrios,
+ou seja a probabilidade posterior de que cada combinação de estratégias seja estável.
+
+Seguem as tabelas com estas probabilidades para os dois critérios
+de equilíbrio e para as duas medidas de *payoff*
+
+### Payoffs baseados na probabilidade de persistência
+
+
+```{r prob strategies pop persist}
+f1 <- function(x, i, j, k){
+    apply(x[[i]][,j:k], 2, mean)
+}
+pers.nash <- matrix(
+    c(apply(sapply(post.Nash.short, f1, i=2, j=1, k=12), 1, mean)[1:4],
+      apply(sapply(post.Nash, f1, i=2, j=1, k=12), 1, mean)[1:4],
+      apply(sapply(post.Nash.120, f1, i=2, j=1, k=12), 1, mean)[1:4]
+      ),
+    byrow=TRUE, ncol=4,
+    dimnames=list(c("11.3 days", "60 days", "120 days"), c("LL", "LH", "HL", "HH"))
+)
+
+pers.eq <- matrix(
+    c(apply(results3, 2, mean),
+      apply(results, 2, mean),
+      apply(results5, 2, mean)
+      ),
+    byrow=TRUE, ncol=4,
+    dimnames=list(c("11.3 days", "60 days", "120 days"), c("LL", "LH", "HL", "HH"))
+)
+```
+
+#### Equilíbrio de Nash
+
+```{r persist Nash}
+kable(pers.nash, digits=3, caption="Posterior probabilities of Nash equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics upt ot 11.3, 60 and 120 days. Payoff: population persistence at the end of simulations.")
+```
+
+#### Equilíbrio em geral
+
+```{r persist equilib}
+kable(pers.eq, digits=3, caption="Posterior probabilities of equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics upt ot 11.3, 60 and 120 days. Payoff: population persistence at the end of simulations.")
+```
+
+### Payoffs baseados no tamanho populacional médio
+
+A seguir os mesmos cálculos, mas usando como *payoffs*
+as abundâncias médias ao fim da simulação. Para comparar as duas espécies
+estas abundâncias foram divididas pela capacidade de suporte de cada espécie.
+
+```{r prob strategies pop size}
+pops.nash <- matrix(
+    c(apply(sapply(post.Nash.short, f1, i=1, j=1, k=12), 1, mean)[1:4],
+      apply(sapply(post.Nash, f1, i=1, j=1, k=12), 1, mean)[1:4],
+      apply(sapply(post.Nash.120, f1, i=1, j=1, k=12), 1, mean)[1:4]
+      ),
+    byrow=TRUE, ncol=4,
+    dimnames=list(c("11.3 days", "60 days", "120 days"), c("LL", "LH", "HL", "HH"))
+)
+
+pops.eq <- matrix(
+    c(apply(results4, 2, mean),
+      apply(results2, 2, mean),
+      apply(results6, 2, mean)
+      ),
+    byrow=TRUE, ncol=4,
+    dimnames=list(c("11.3 days", "60 days", "120 days"), c("LL", "LH", "HL", "HH"))
+)
+```
+
+#### Equilíbrio de Nash
+
+```{r pop size Nash}
+kable(pops.nash, digits=3, caption="Posterior probabilities of Nash equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics upt ot 11.3, 60 and 120 days. Payoff: mean relative population sizes at the end of simulations.")
+```
+
+#### Equilíbrio em geral
+
+```{r pop size equilib}
+kable(pops.eq, digits=3, caption="Posterior probabilities of equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics upt ot 11.3, 60 and 120 days. Payoff: mean relative population sizes at the end of simulations.")
+```
+
 
 # Pontos a discutir
 
@@ -548,7 +676,15 @@ todos os experimentos de competição, exceto o experimento 3.
 pela queda nas taxas de crescimento, e também por sua variação entre experimentos.
 Precisamos entender melhor este resultado, pois no modelo clássico Lotka-Volterra
 o parâmetro $r$ seria uma característica intrínseca da espécie, enquanto o ambiente poderia
-alterar mais facilmente $K$ e mesmo os coeficientes de competição. OK
+alterar mais facilmente $K$ e mesmo os coeficientes de competição.
+* Análises baseadas em teoria de jogos com duas estratégias para cada espécie (baixar ou manter $r$) mostra
+que as duas espécies baixarem o seus $r$ é uma combinação de estratégias
+que pode ser estável, mas não sempre. Mais do que isto, outras combinações
+têm maiores probabilidades.
 
 # References
 
+
+[^1]: No caso da simulação até o tempo dos experimento usei os intervalos reais de medição, que 
+variaram entre `r min(diff(as.numeric(colnames(experim1[[1]]))))` e
+`r max(diff(as.numeric(colnames(experim1[[1]]))))` dias.

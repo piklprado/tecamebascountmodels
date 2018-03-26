@@ -169,10 +169,11 @@ post.compet <- function(obj, nrep=1000){
 }
 
 ## Run simulations of competition dynamics, with parameters taken from the posterior distribution
-sim.compet <- function(obj, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0=50, P0=50, nrep=1000){
+sim.compet <- function(obj, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0=50, P0=50, nrep=1000, obs=FALSE){
     if(missing(dt))
         dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
-    results <- array( dim=c(length(dt), 2, nrep))
+    res.a <- matrix(NA, nrep, 3)
+    res.est <- array( dim=c(length(dt), 2, nrep))
     for(j in 1:nrep){
         i <- sample(1:length(obj$BUGSoutput$sims.list$rA), 1)
         rA <- obj$BUGSoutput$sims.list$rA[i]
@@ -182,17 +183,23 @@ sim.compet <- function(obj, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0
         kP <- obj$BUGSoutput$sims.list$kP[i]
         pP <- obj$BUGSoutput$sims.list$pP[i]
         aPA <- obj$BUGSoutput$sims.list$aPA[i]
-        aAP <- obj$BUGSoutput$sims.list$aAP[i]    
-        results[,,j] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0)
+        aAP <- obj$BUGSoutput$sims.list$aAP[i]
+        A <- (kA - aAP*kP)/(1-aAP*aPA)
+        P <- (kP - aPA*kA)/(1-aAP*aPA)
+        estavel <- 1/aPA < kA/kP & kA/kP < aAP
+        res.a[j,] <- c( A, P, estavel)
+        res.est[,,j] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)        
     }
-    results
+    list(analitico=res.a, estocast=res.est)
 }
+
 
 ## Same simulation, but from parameters r and k taken from the pure cultures experiments
 sim.compet2 <- function(obj1, obj2, obj3, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0=50, P0=50, nrep=1000, obs=FALSE){
     if(missing(dt))
         dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
-    results <- array( dim=c(length(dt), 2, nrep))
+    res.a <- matrix(NA, nrep, 3)
+    res.est <- array( dim=c(length(dt), 2, nrep))
     for(k in 1:nrep){
         i <- sample(1:length(obj1$BUGSoutput$sims.list$rA), 1)
         j <- sample(1:length(obj2$BUGSoutput$sims.list$r), 1)
@@ -204,17 +211,24 @@ sim.compet2 <- function(obj1, obj2, obj3, data, dt, sampArea=10*pi*0.25^2, totAr
         kP <- obj3$BUGSoutput$sims.list$k[z]
         pP <- obj1$BUGSoutput$sims.list$pP[i]
         aPA <- obj1$BUGSoutput$sims.list$aPA[i]
-        aAP <- obj1$BUGSoutput$sims.list$aAP[i]    
-        results[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
+        aAP <- obj1$BUGSoutput$sims.list$aAP[i]
+        A <- (kA - aAP*kP)/(1-aAP*aPA)
+        P <- (kP - aPA*kA)/(1-aAP*aPA)
+        estavel <- 1/aPA < kA/kP & kA/kP < aAP
+        res.a[k,] <- c( A, P, estavel)
+        res.est[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)        
     }
-    results
+    list(analitico=res.a, estocast=res.est)
 }
+
+
 
 ## Same simulation, but from parameters r and k taken from the pure cultures experiments only for Arcella
 sim.compet3 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0=50, P0=50, nrep=1000, obs=FALSE){
     if(missing(dt))
         dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
-    results <- array( dim=c(length(dt), 2, nrep))
+    res.a <- matrix(NA, nrep, 3)
+    res.est <- array( dim=c(length(dt), 2, nrep))
     for(k in 1:nrep){
         i <- sample(1:length(obj1$BUGSoutput$sims.list$rA), 1)
         j <- sample(1:length(obj2$BUGSoutput$sims.list$r), 1)
@@ -225,17 +239,22 @@ sim.compet3 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.2
         kP <- obj1$BUGSoutput$sims.list$kP[i]
         pP <- obj1$BUGSoutput$sims.list$pP[i]
         aPA <- obj1$BUGSoutput$sims.list$aPA[i]
-        aAP <- obj1$BUGSoutput$sims.list$aAP[i]    
-        results[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
+        aAP <- obj1$BUGSoutput$sims.list$aAP[i]
+        A <- (kA - aAP*kP)/(1-aAP*aPA)
+        P <- (kP - aPA*kA)/(1-aAP*aPA)
+        estavel <- 1/aPA < kA/kP & kA/kP < aAP
+        res.a[k,] <- c( A, P, estavel)
+        res.est[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
     }
-    results
+    list(analitico=res.a, estocast=res.est)
 }
 
 ## Same simulation, but from parameters r and k taken from the pure cultures experiments only for Pixydiculla
 sim.compet4 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0=50, P0=50, nrep=1000, obs=FALSE){
     if(missing(dt))
         dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
-    results <- array( dim=c(length(dt), 2, nrep))
+    res.a <- matrix(NA, nrep, 3)
+    res.est <- array( dim=c(length(dt), 2, nrep))
     for(k in 1:nrep){
         i <- sample(1:length(obj1$BUGSoutput$sims.list$rA), 1)
         j <- sample(1:length(obj2$BUGSoutput$sims.list$r), 1)
@@ -246,12 +265,127 @@ sim.compet4 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.2
         kP <- obj2$BUGSoutput$sims.list$k[j]
         pP <- obj1$BUGSoutput$sims.list$pP[i]
         aPA <- obj1$BUGSoutput$sims.list$aPA[i]
-        aAP <- obj1$BUGSoutput$sims.list$aAP[i]    
-        results[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
+        aAP <- obj1$BUGSoutput$sims.list$aAP[i]
+        aPA <- obj1$BUGSoutput$sims.list$aPA[i]
+        aAP <- obj1$BUGSoutput$sims.list$aAP[i]
+        A <- (kA - aAP*kP)/(1-aAP*aPA)
+        P <- (kP - aPA*kA)/(1-aAP*aPA)
+        estavel <- 1/aPA < kA/kP & kA/kP < aAP
+        res.a[k,] <- c( A, P, estavel)
+        res.est[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
     }
-    results
+    list(analitico=res.a, estocast=res.est)
 }
 
+
+## Checking if Nash equilibirum occurs from different combinations of parameters
+## For each combination nrep repetitions of the simulated dynamics is ran and then a payoff matrix is built
+## from wich Nash equilibrium is checked
+
+sim.Nash <- function(obj1, obj2, obj3, data, dt, sampArea=10*pi*0.25^2,
+                     totArea=0.25*90, A0=50, P0=50, nsamp=10, nrep=100, obs=FALSE){
+    if(missing(dt))
+        dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
+    Nashp <- matrix(NA, nsamp, 12,
+                    dimnames=list(NULL, c("LL","LH","HL","HH",
+                                          "LL.A","LL.P",
+                                          "LH.A","LH.P",
+                                          "HL.A","HL.P",
+                                          "HH.A","HH.P"))
+                    )
+    Nashm <- matrix(NA, nsamp, 12,
+                    dimnames=list(NULL, c("LL","LH","HL","HH",
+                                          "LL.A","LL.P",
+                                          "LH.A","LH.P",
+                                          "HL.A","HL.P",
+                                          "HH.A","HH.P"))
+                    )
+    for(k in 1:nsamp){
+        LL <- matrix(NA, nrep, 2)
+        LH <- matrix(NA, nrep, 2)
+        HL <- matrix(NA, nrep, 2)
+        HH <- matrix(NA, nrep, 2)
+        i <- sample(1:length(obj1$BUGSoutput$sims.list$rA), 1)
+        j <- sample(1:length(obj2$BUGSoutput$sims.list$r), 1)
+        z <- sample(1:length(obj3$BUGSoutput$sims.list$r), 1)
+        rAi <- obj2$BUGSoutput$sims.list$r[j]
+        kAi <- obj2$BUGSoutput$sims.list$k[j]
+        rPi <- obj3$BUGSoutput$sims.list$r[z]
+        kPi <- obj3$BUGSoutput$sims.list$k[z]
+        rA <- obj1$BUGSoutput$sims.list$rA[i]
+        kA <- obj1$BUGSoutput$sims.list$kA[i]
+        rP <- obj1$BUGSoutput$sims.list$rP[i]
+        kP <- obj1$BUGSoutput$sims.list$kP[i]
+        pA <- obj1$BUGSoutput$sims.list$pA[i]
+        pP <- obj1$BUGSoutput$sims.list$pP[i]
+        aPA <- obj1$BUGSoutput$sims.list$aPA[i]
+        aAP <- obj1$BUGSoutput$sims.list$aAP[i]
+        ## Stochastic simulations
+        for(j in 1:nrep){
+            LL[j,] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)[length(dt),]/c(kA,kP)
+            LH[j,] <- compet1(rA, kA, pA, rPi, kPi, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)[length(dt),]/c(kA,kP)
+            HL[j,] <- compet1(rAi, kAi, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)[length(dt),]/c(kA,kP)
+            HH[j,] <- compet1(rAi, kAi, pA, rPi,kPi, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)[length(dt),]/c(kA,kP)
+        }
+        ## Mean population size relative to K
+        LLm <- apply(LL,2,mean)
+        LHm <- apply(LH,2,mean)
+        HLm <- apply(HL,2,mean)
+        HHm <- apply(HH,2,mean)
+        ## Persistence probabilities
+        LLp <- apply(LL>0,2,mean)
+        LHp <- apply(LH>0,2,mean)
+        HLp <- apply(HL>0,2,mean)
+        HHp <- apply(HH>0,2,mean)
+        ## Testing for Nash equilibrium
+        ## By persistence probs
+        Nashp[k,"LL"] <- LLp[1]>=HLp[1]&LHp[1]>=HHp[1] & LLp[2]>=LHp[2]&HLp[2]>=HHp[2]
+        Nashp[k,"LH"] <- LLp[1]>=HLp[1]&LHp[1]>=HHp[1] & LLp[2]<=LHp[2]&HLp[2]<=HHp[2]
+        Nashp[k,"HL"] <- LLp[1]<=HLp[1]&LHp[1]<=HHp[1] & LLp[2]>=LHp[2]&HLp[2]>=HHp[2]
+        Nashp[k,"HH"] <- LLp[1]<=HLp[1]&LHp[1]<=HHp[1] & LLp[2]<=LHp[2]&HLp[2]<=HHp[2]
+        ## By relative population sizes
+        Nashm[k,"LL"] <- LLm[1]>=HLm[1]&LHm[1]>=HHm[1] & LLm[2]>=LHm[2]&HLm[2]>=HHm[2]
+        Nashm[k,"LH"] <- LLm[1]>=HLm[1]&LHm[1]>=HHm[1] & LLm[2]<=LHm[2]&HLm[2]<=HHm[2]
+        Nashm[k,"HL"] <- LLm[1]<=HLm[1]&LHm[1]<=HHm[1] & LLm[2]>=LHm[2]&HLm[2]>=HHm[2]
+        Nashm[k,"HH"] <- LLm[1]<=HLm[1]&LHm[1]<=HHm[1] & LLm[2]<=LHm[2]&HLm[2]<=HHm[2]
+        ## Payoffs
+        Nashm[k,5:12] <- c(LLm,LHm,HLm,HHm)
+        Nashp[k,5:12] <- c(LLp,LHp,HLp,HHp)
+    }
+    return(list(Nashm, Nashp))
+}
+
+## Check Equilibrium
+check.eq <- function(LL.A, LH.A, HL.A, HH.A, LL.P, LH.P, HL.P, HH.P, lista){
+    if(!missing(lista)){
+        LL.A <- lista[["LL.A"]]
+        LH.A <- lista[["LH.A"]]
+        HL.A <- lista[["HL.A"]]
+        HH.A <- lista[["HH.A"]]
+        LL.P <- lista[["LL.P"]]
+        LH.P <- lista[["LH.P"]]
+        HL.P <- lista[["HL.P"]]
+        HH.P <- lista[["HH.P"]]
+        }
+    results <- c(LL = FALSE, LH = FALSE, HL = FALSE, HH = FALSE)
+    if(LL.A >= HL.A & LH.A >= HH.A){
+        results["LL"] <- LL.P >= LH.P
+        results["LH"] <- LL.P <= LH.P
+    }
+    if(LL.A <= HL.A & LH.A <= HH.A){
+        results["HL"] <- HL.P >= HH.P
+        results["HH"] <- HL.P <= HH.P
+    }
+    if(LL.P >= LH.P & HL.P >= HH.P){
+        results["LL"] <- LL.A >= LH.A
+        results["LH"] <- LL.A <= LH.A
+    }
+    if(LL.P <= LH.P & HL.P <= HH.P){
+        results["LH"] <- LH.A >= HH.A
+        results["HH"] <- LH.A <= HH.A
+    }
+    return(results)
+}
 
 ## Simulates the competition dynamics modelled
 ## compet1 <- function(A0, P0, rA, rP, kA, kP, aPA, aAP, dt, nIntervals, nSamples, sampArea, totArea){
