@@ -521,6 +521,7 @@ source("postNash.R")
 
 ### Critérios de equilíbrio
 
+#### Equilíbrio de Nash
 
 As tabelas de *payoff* mostram o ganho para cada espécie
 em cada combinação de estratégias. Este ganho pode ser por exemplo a probabilidade de persistência ou o 
@@ -680,7 +681,9 @@ alterar mais facilmente $K$ e mesmo os coeficientes de competição.
 * Análises baseadas em teoria de jogos com duas estratégias para cada espécie (baixar ou manter $r$) mostra
 que as duas espécies baixarem o seus $r$ é uma combinação de estratégias
 que pode ser estável, mas não sempre. Mais do que isto, outras combinações
-têm maiores probabilidades.
+têm maiores probabilidades. Também há variações importantes nestes resultados em função
+do critério de estabilidade usado e de quanto tempo a simulação corre para
+calcular os *payoffs*.
 
 # References
 
