@@ -13,14 +13,14 @@ load("compfit5.RData")
 load("compfit6.RData")
 load("compfit7.RData")
 source("postfunctions.R")
-sim.comb <- sapply(expand.grid(paste("fit",1:7, sep=""),
+sim.comb <- sapply(expand.grid(paste("fit",c(1,2,4,6,7), sep=""),
                         paste("fit.A",1:3, sep=""),
                         paste("fit.P",1:3, sep="")),
                    as.character)
-dt <- rep(1/3, 90)
+dt <- rep(1/3, 360)
 cl1 <- makePSOCKcluster(4)
 clusterExport(cl1, c("dt", "sim.comb", "sim.Nash", "compet1",
-                     paste("fit",1:7, sep=""),
+                     paste("fit",c(1,2,4,6,7), sep=""),
                      paste("fit.A",1:3, sep=""),
                      paste("fit.P",1:3, sep="")))
 sim.Nash.par <- function(i, nomes.objs,...){
@@ -35,28 +35,28 @@ sim.Nash.par <- function(i, nomes.objs,...){
 }
 
 ## 60 days
-post.Nash <- parLapply(cl1, X=1:nrow(sim.comb), fun=sim.Nash.par,
-                       nomes.obj = sim.comb, dt=dt, data=experim1, nsamp=20, nrep=100)
-## Only the time of the experiment
+## post.Nash <- parLapply(cl1, X=1:nrow(sim.comb), fun=sim.Nash.par,
+##                        nomes.obj = sim.comb, dt=dt, data=experim1, nsamp=30, nrep=100)
+## Only the time of the experiment (11.3 days)
 post.Nash.short <- parLapply(cl1, X=1:nrow(sim.comb), fun=sim.Nash.par,
-                             nomes.obj = sim.comb, data=experim1, nsamp=20, nrep=100)
+                             nomes.obj = sim.comb, data=experim1, nsamp=100, nrep=200)
 ## 120 days
-post.Nash.120 <- parLapply(cl1, X=1:nrow(sim.comb), fun=sim.Nash.par,
-                       nomes.obj = sim.comb, dt=rep(1/3, 360), data=experim1, nsamp=20, nrep=100)
+## post.Nash.120 <- parLapply(cl1, X=1:nrow(sim.comb), fun=sim.Nash.par,
+##                        nomes.obj = sim.comb, dt=rep(1/3, 360), data=experim1, nsamp=30, nrep=100)
 stopCluster(cl1)
 save.image()
-save(post.Nash.120, file="postNash120.RData")
-save(post.Nash, file="postNash.RData")
+## save(post.Nash.120, file="postNash120.RData")
+## save(post.Nash, file="postNash.RData")
 save(post.Nash.short, file="postNashShort.RData")
 ## Proportion of Nash equilibrium for each possibility
 f1 <- function(x, i, j, k){
     apply(x[[i]][,j:k], 2, mean)
 }
 ##  60days
-apply(sapply(post.Nash, f1, i=2, j=1, k=4), 1, mean)
-apply(sapply(post.Nash, f1, i=1, j=1, k=4), 1, mean)
-## Mean values, short term
-apply(sapply(post.Nash.short, f1, i=2, j=5, k=12), 1, mean)
+## apply(sapply(post.Nash, f1, i=2, j=1, k=4), 1, mean)
+## apply(sapply(post.Nash, f1, i=1, j=1, k=4), 1, mean)
+## ## Mean values, short term
+## apply(sapply(post.Nash.short, f1, i=2, j=5, k=12), 1, mean)
 
 ## Tentando este pacote, mas não entendi
 ## library(GPGame)
@@ -81,31 +81,31 @@ check.eq(1, -1, 2, 0, 1, 2, -1, 0)
 index <- c(5, 7, 9, 11, 6, 8, 10, 12)
 j <- 1
 i <- 8
-post.Nash[[i]][[2]][j,c(1:4, index)]
+post.Nash.short[[i]][[2]][j,c(1:4, index)]
 check.eq(lista=as.list(post.Nash[[i]][[2]][j,5:12]))
 
 ## Varrendo as listas
 ## 1. Simulacoes por 60 dias
 ## por prob persistencia
-results <- matrix(NA, nrow=length(post.Nash)*nrow(post.Nash[[1]][[1]]), ncol=4,
-                  dimnames=list(NULL, c("LL","LH","HL","HH")))
-k <- 1
-for(i in 1:length(post.Nash)){
-    for(j in 1:nrow(post.Nash[[1]][[1]])){
-        results[k,] <-check.eq(lista = as.list(post.Nash[[i]][[2]][j,5:12]))
-        k <- k+1
-        }
-}
-## Por tamanho pop
-results2 <- matrix(NA, nrow=length(post.Nash)*nrow(post.Nash[[1]][[1]]), ncol=4,
-                   dimnames=list(NULL, c("LL","LH","HL","HH")))
-k <- 1
-for(i in 1:length(post.Nash)){
-    for(j in 1:nrow(post.Nash[[1]][[1]])){
-        results2[k,] <-check.eq(lista = as.list(post.Nash[[i]][[1]][j,5:12]))
-        k <- k+1
-        }
-}
+## results <- matrix(NA, nrow=length(post.Nash)*nrow(post.Nash[[1]][[1]]), ncol=4,
+##                   dimnames=list(NULL, c("LL","LH","HL","HH")))
+## k <- 1
+## for(i in 1:length(post.Nash)){
+##     for(j in 1:nrow(post.Nash[[1]][[1]])){
+##         results[k,] <-check.eq(lista = as.list(post.Nash[[i]][[2]][j,5:12]))
+##         k <- k+1
+##         }
+## }
+## ## Por tamanho pop
+## results2 <- matrix(NA, nrow=length(post.Nash)*nrow(post.Nash[[1]][[1]]), ncol=4,
+##                    dimnames=list(NULL, c("LL","LH","HL","HH")))
+## k <- 1
+## for(i in 1:length(post.Nash)){
+##     for(j in 1:nrow(post.Nash[[1]][[1]])){
+##         results2[k,] <-check.eq(lista = as.list(post.Nash[[i]][[1]][j,5:12]))
+##         k <- k+1
+##         }
+## }
 
 ## 2. Simulacoes pela duracao do experimento
 ## por prob persistencia
@@ -131,25 +131,25 @@ for(i in 1:length(post.Nash.short)){
 
 ## 3. Simulacoes por 120 dias
 ## por prob persistencia
-results5 <- matrix(NA, nrow=length(post.Nash.120)*nrow(post.Nash.120[[1]][[1]]), ncol=4,
-                  dimnames=list(NULL, c("LL","LH","HL","HH")))
-k <- 1
-for(i in 1:length(post.Nash.120)){
-    for(j in 1:nrow(post.Nash.120[[1]][[1]])){
-        results5[k,] <-check.eq(lista = as.list(post.Nash.120[[i]][[2]][j,5:12]))
-        k <- k+1
-        }
-}
-## Por tamanho pop
-results6 <- matrix(NA, nrow=length(post.Nash.120)*nrow(post.Nash.120[[1]][[1]]), ncol=4,
-                   dimnames=list(NULL, c("LL","LH","HL","HH")))
-k <- 1
-for(i in 1:length(post.Nash.120)){
-    for(j in 1:nrow(post.Nash.120[[1]][[1]])){
-        results6[k,] <-check.eq(lista = as.list(post.Nash.120[[i]][[1]][j,5:12]))
-        k <- k+1
-        }
-}
+## results5 <- matrix(NA, nrow=length(post.Nash.120)*nrow(post.Nash.120[[1]][[1]]), ncol=4,
+##                   dimnames=list(NULL, c("LL","LH","HL","HH")))
+## k <- 1
+## for(i in 1:length(post.Nash.120)){
+##     for(j in 1:nrow(post.Nash.120[[1]][[1]])){
+##         results5[k,] <-check.eq(lista = as.list(post.Nash.120[[i]][[2]][j,5:12]))
+##         k <- k+1
+##         }
+## }
+## ## Por tamanho pop
+## results6 <- matrix(NA, nrow=length(post.Nash.120)*nrow(post.Nash.120[[1]][[1]]), ncol=4,
+##                    dimnames=list(NULL, c("LL","LH","HL","HH")))
+## k <- 1
+## for(i in 1:length(post.Nash.120)){
+##     for(j in 1:nrow(post.Nash.120[[1]][[1]])){
+##         results6[k,] <-check.eq(lista = as.list(post.Nash.120[[i]][[1]][j,5:12]))
+##         k <- k+1
+##         }
+## }
 
 
 ## Strict Nash equilibrium and multiple equilibria
@@ -167,16 +167,16 @@ apply(results4, 2, mean)
 
 ## Simulacoes por 60 dias
 ## Presistence prob
-apply(sapply(post.Nash, f1, i=2, j=1, k=12), 1, mean)
-apply(results, 2, mean)
-## Pop size
-apply(sapply(post.Nash, f1, i=1, j=1, k=12), 1, mean)
-apply(results2, 2, mean)
+## apply(sapply(post.Nash, f1, i=2, j=1, k=12), 1, mean)
+## apply(results, 2, mean)
+## ## Pop size
+## apply(sapply(post.Nash, f1, i=1, j=1, k=12), 1, mean)
+## apply(results2, 2, mean)
 
 ## Simulacoes por 120 dias
 ## Persit prob
-apply(sapply(post.Nash.120, f1, i=2, j=1, k=12), 1, mean)
-apply(results5, 2, mean, na.rm=TRUE)
-## Pop size
-apply(sapply(post.Nash.120, f1, i=1, j=1, k=12), 1, mean)
-apply(results6, 2, mean)
+## apply(sapply(post.Nash.120, f1, i=2, j=1, k=12), 1, mean)
+## apply(results5, 2, mean, na.rm=TRUE)
+## ## Pop size
+## apply(sapply(post.Nash.120, f1, i=1, j=1, k=12), 1, mean)
+## apply(results6, 2, mean)

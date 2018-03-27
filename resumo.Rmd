@@ -365,7 +365,7 @@ par(mfrow=c(1,1))
 
 
 ```{r compet simul}
-sim.comb <- sapply(expand.grid(paste("fit",1:7, sep=""),
+sim.comb <- sapply(expand.grid(paste("fit",c(1,2,4,6,7), sep=""),
                         paste("fit.A",1:3, sep=""),
                         paste("fit.P",1:3, sep="")),
                      as.character)
@@ -384,7 +384,7 @@ for(i in 1:nrow(sim.comb)){
 nrep <- round(5000/nrow(sim.comb))
 sim.res <- matrix(NA, 2, nrep*nrow(sim.comb))
 sim.res.a <- matrix(NA, nrep*nrow(sim.comb), 3)
-dt <- rep(1/5, 300)
+dt <- rep(1/3, 90)
 for(i in 1:nrow(sim.comb)){
     intervalo <- (i*nrep-(nrep-1)):(i*nrep)
     tmp <- do.call("sim.compet2",
@@ -417,8 +417,11 @@ Os parâmetros de cada experimento foram tomados pareados (isto é, não sorteei
 independentemente um valor de $r$ e de $K$ para uma espécie, e sim sorteei um 
 par deste parâmetros da distribuição bivariada, para preservar sua eventual correlação).
 
-Com três experimentos de cultura pura por espécie e sete experimentos de competição
-é possível fazer `r nrow(sim.comb)` combinações de distribuições *a posteriori*. 
+Excluí dos experimentos as posteriores dos experimentos de competição 3 e 5, 
+em que *Pyxidicula* e *Arcella* parecem ter valores de $r$ mais póximos de
+culturas puras.
+Com três experimentos de cultura pura por espécie e os cinco experimentos de competição
+que mantive é possível fazer `r nrow(sim.comb)` combinações de distribuições *a posteriori*. 
 De cada uma destas combinações de Tomei `r nrep` amostras.
 
 A proporção das simulações que tiveram populações extintas e não extintas
@@ -543,6 +546,7 @@ também é manter o $r$ baixo.
 Neste caso temos um [Equilíbrio de Nash](https://en.wikipedia.org/wiki/Nash_equilibrium),
 com as duas espécies em estratégia de manter baixos crescimentos populacionais.
 
+
 #### Equilíbrio geral
 
 Há condições de equilíbrio de estratégias menos estritas que as de Nash,
@@ -575,12 +579,14 @@ com isso montei duas matrizes de *payoffs*:
 em que cada espécie tinha população maior que zero ao fim da simulação.
 * Tamanho populacional médio: média dos tamanhos populacionais nas 100 réplicas ao fim de cada simulação.
 
-Simulei 20 combinações de parâmetros para cada uma das `r nrow(sim.comb)`
-combinações possíveis das 7 posteriores dos experimentos de competição com
-as 3 posteriores de cada experimento de cultura pura. Ainda, testei simulações
-que terminavam após o tempo que duraram os experimentos de competição 
-( `r max(as.numeric(colnames(experim1[[1]])))` dias), 60 e 120 dias, a intervalos
-de $1/3$ de dia[^1].
+Simulei 100 combinações de parâmetros para cada uma das `r nrow(sim.comb)`
+combinações possíveis das 5 posteriores dos experimentos de competição com
+as 3 posteriores de cada experimento de cultura pura. 
+
+As simulações correram até o tempo que duraram os experimentos de competição 
+( `r max(as.numeric(colnames(experim1[[1]])))` dias), usando os intervalos 
+reais de medição, que variaram entre `r min(diff(as.numeric(colnames(experim1[[1]]))))` e
+`r max(diff(as.numeric(colnames(experim1[[1]]))))` dias.
 
 Em resumo, para cada combinação de parâmetros obtive então uma matriz de *payoffs*
 de persistência e outra de tamanho populacional. Verifiquei em cada uma destas matrizes
@@ -599,35 +605,13 @@ de equilíbrio e para as duas medidas de *payoff*
 f1 <- function(x, i, j, k){
     apply(x[[i]][,j:k], 2, mean)
 }
-pers.nash <- matrix(
+pers.m1 <- matrix(
     c(apply(sapply(post.Nash.short, f1, i=2, j=1, k=12), 1, mean)[1:4],
-      apply(sapply(post.Nash, f1, i=2, j=1, k=12), 1, mean)[1:4],
-      apply(sapply(post.Nash.120, f1, i=2, j=1, k=12), 1, mean)[1:4]
-      ),
+      apply(results3, 2, mean)),
     byrow=TRUE, ncol=4,
-    dimnames=list(c("11.3 days", "60 days", "120 days"), c("LL", "LH", "HL", "HH"))
+    dimnames=list(c("Equilíbrio de Nash", "Equilíbrio geral"), c("LL", "LH", "HL", "HH"))
 )
-
-pers.eq <- matrix(
-    c(apply(results3, 2, mean),
-      apply(results, 2, mean),
-      apply(results5, 2, mean)
-      ),
-    byrow=TRUE, ncol=4,
-    dimnames=list(c("11.3 days", "60 days", "120 days"), c("LL", "LH", "HL", "HH"))
-)
-```
-
-#### Equilíbrio de Nash
-
-```{r persist Nash}
-kable(pers.nash, digits=3, caption="Posterior probabilities of Nash equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics upt ot 11.3, 60 and 120 days. Payoff: population persistence at the end of simulations.")
-```
-
-#### Equilíbrio em geral
-
-```{r persist equilib}
-kable(pers.eq, digits=3, caption="Posterior probabilities of equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics upt ot 11.3, 60 and 120 days. Payoff: population persistence at the end of simulations.")
+kable(pers.m1, digits=3, caption="Posterior probabilities of Nash equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics ran till 11.3 days. Payoff: probability of population persistence at the end of simulations.")
 ```
 
 ### Payoffs baseados no tamanho populacional médio
@@ -637,35 +621,14 @@ as abundâncias médias ao fim da simulação. Para comparar as duas espécies
 estas abundâncias foram divididas pela capacidade de suporte de cada espécie.
 
 ```{r prob strategies pop size}
-pops.nash <- matrix(
+pops.m2 <- matrix(
     c(apply(sapply(post.Nash.short, f1, i=1, j=1, k=12), 1, mean)[1:4],
-      apply(sapply(post.Nash, f1, i=1, j=1, k=12), 1, mean)[1:4],
-      apply(sapply(post.Nash.120, f1, i=1, j=1, k=12), 1, mean)[1:4]
-      ),
+      apply(results4, 2, mean)),
     byrow=TRUE, ncol=4,
-    dimnames=list(c("11.3 days", "60 days", "120 days"), c("LL", "LH", "HL", "HH"))
+    dimnames=list(c("Equilíbrio de Nash", "Equilíbrio geral"), c("LL", "LH", "HL", "HH"))
 )
 
-pops.eq <- matrix(
-    c(apply(results4, 2, mean),
-      apply(results2, 2, mean),
-      apply(results6, 2, mean)
-      ),
-    byrow=TRUE, ncol=4,
-    dimnames=list(c("11.3 days", "60 days", "120 days"), c("LL", "LH", "HL", "HH"))
-)
-```
-
-#### Equilíbrio de Nash
-
-```{r pop size Nash}
-kable(pops.nash, digits=3, caption="Posterior probabilities of Nash equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics upt ot 11.3, 60 and 120 days. Payoff: mean relative population sizes at the end of simulations.")
-```
-
-#### Equilíbrio em geral
-
-```{r pop size equilib}
-kable(pops.eq, digits=3, caption="Posterior probabilities of equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics upt ot 11.3, 60 and 120 days. Payoff: mean relative population sizes at the end of simulations.")
+kable(pops.m2, digits=3, caption="Posterior probabilities of Nash equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics ran till 11.3 days. Payoff: mean relative population sizes at the end of simulations.")
 ```
 
 
@@ -688,6 +651,3 @@ calcular os *payoffs*.
 # References
 
 
-[^1]: No caso da simulação até o tempo dos experimento usei os intervalos reais de medição, que 
-variaram entre `r min(diff(as.numeric(colnames(experim1[[1]]))))` e
-`r max(diff(as.numeric(colnames(experim1[[1]]))))` dias.
