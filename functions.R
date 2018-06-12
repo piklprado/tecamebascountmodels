@@ -545,12 +545,12 @@ mu.ln <- function(x,lsd) log(x)-(lsd^2)/2
 
 ## Plots
 ## For logistics
-p1 <- function(zoo.obj){
+p1 <- function(zoo.obj, col="blue"){
     zoo.obj %>%
         fortify() %>%
         ggplot(aes(Index, obsm)) +
-        geom_point(size=2) +
-        geom_ribbon(aes(ymin=post.low, ymax=post.up), alpha=0.25, fill="blue") +
+        geom_point(size=2, colour=col) +
+        geom_ribbon(aes(ymin=post.low, ymax=post.up), alpha=0.25, fill=col) +
         scale_y_continuous(name="Number of cells")+
         scale_x_continuous(name="Time (days)")+
         theme_bw()

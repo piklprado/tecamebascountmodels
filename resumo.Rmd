@@ -169,9 +169,9 @@ pP1 <- p1(summary.df(fit.P1, data=pyx1)) + ggtitle("Pyx #1")
 pP2 <- p1(summary.df(fit.P2, data=pyx2))+ ggtitle("Pyx #2")
 pP3 <- p1(summary.df(fit.P3, data=pyx3))+ ggtitle("Pyx #3")
 ## Arcella
-pA1 <- p1(summary.df(fit.A1, data=arc1)) + ggtitle("Arc #1")
-pA2 <- p1(summary.df(fit.A2, data=arc2))+ ggtitle("Arc #2")
-pA3 <- p1(summary.df(fit.A3, data=arc3))+ ggtitle("Arc #3")
+pA1 <- p1(summary.df(fit.A1, data=arc1), col="red") + ggtitle("Arc #1")
+pA2 <- p1(summary.df(fit.A2, data=arc2), col="red")+ ggtitle("Arc #2")
+pA3 <- p1(summary.df(fit.A3, data=arc3), col="red")+ ggtitle("Arc #3")
 grid.arrange(pP1,  pA1, pP2, pA2, pP3, pA3)
 ```
 
