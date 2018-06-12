@@ -364,26 +364,33 @@ par(mfrow=c(1,1))
 # Uma hipótese de jogo evolutivo
 
 
-```{r compet simul}
+```{r compet simul HH}
+##  Simulacao da competicao com ambas as especies com valores de r altos
+## (tomados das posteriores das culturas monoespecíficas)
 sim.comb <- sapply(expand.grid(paste("fit",c(1,2,4,6,7), sep=""),
                         paste("fit.A",1:3, sep=""),
                         paste("fit.P",1:3, sep="")),
                      as.character)
 
 nrep <- round(5000/nrow(sim.comb))
-sim.res.e <- matrix(NA, 2, nrep*nrow(sim.comb))
+sim.res.e <- matrix(NA, 2, nrep*nrow(sim.comb)) ## para guardar resultados da simulacao estocastica
+sim.res.e.s <- matrix(NA, 2, nrep*nrow(sim.comb)) ## para guardar resultados da simulacao sem estocasticidade
+sim.res.e.a <- matrix(NA, nrep*nrow(sim.comb), 3) ## para guardar resultados dos valores no equilibrio analitico
 for(i in 1:nrow(sim.comb)){
     intervalo <- (i*nrep-(nrep-1)):(i*nrep)
-    sim.res.e[,intervalo] <- do.call("sim.compet2",
-                                    args=list(obj1=eval(parse(text=sim.comb[i,1])), obj2=eval(parse(text=sim.comb[i,2])),
-                                              obj3=eval(parse(text=sim.comb[i,3])),
-                                              data=experim1, nrep=nrep))$estocast[ncol(experim1[[1]]),,]
+    tmp <- do.call("sim.compet2",
+                   args=list(obj1=eval(parse(text=sim.comb[i,1])), obj2=eval(parse(text=sim.comb[i,2])),
+                             obj3=eval(parse(text=sim.comb[i,3])),
+                             data=experim1, nrep=nrep, dt=dt))
+    sim.res.e[,intervalo] <- tmp$estocast[length(dt),,]
+    sim.res.e.s[,intervalo] <- tmp$sem.estocast[length(dt),,]
+    sim.res.e.a[intervalo, ] <- tmp$analitico
     }
 
 ## Repetindo para 60 dias
-nrep <- round(5000/nrow(sim.comb))
-sim.res <- matrix(NA, 2, nrep*nrow(sim.comb))
-sim.res.a <- matrix(NA, nrep*nrow(sim.comb), 3)
+sim.res <- matrix(NA, 2, nrep*nrow(sim.comb)) ## para guardar resultados da simulacao estocastica
+sim.res.s <- matrix(NA, 2, nrep*nrow(sim.comb)) ## para guardar resultados da simulacao sem estocasticidade
+sim.res.a <- matrix(NA, nrep*nrow(sim.comb), 3) ## para guardar resultados dos valores no equilibrio analitico
 dt <- rep(1/3, 90)
 for(i in 1:nrow(sim.comb)){
     intervalo <- (i*nrep-(nrep-1)):(i*nrep)
@@ -392,14 +399,37 @@ for(i in 1:nrow(sim.comb)){
                              obj3=eval(parse(text=sim.comb[i,3])),
                              data=experim1, nrep=nrep, dt=dt))
     sim.res[,intervalo] <- tmp$estocast[length(dt),,]
+    sim.res.s[,intervalo] <- tmp$sem.estocast[length(dt),,]
     sim.res.a[intervalo, ] <- tmp$analitico
     }
 ```
+
+```{r compet simul LL}
+##  Simulacao da competicao com ambas as especies com valores de r baixos
+## (tomados das posteriores das culturas monoespecíficas)
+sim.comb.ll <- paste("fit",c(1,2,4,6,7), sep="")
+nrep.ll <- round(5000/length(sim.comb.ll))
+sim.res.e.ll <- matrix(NA, 2, nrep.ll*length(sim.comb.ll))
+sim.res.a.ll <- matrix(NA, nrep.ll*length(sim.comb.ll), 3) ## para guardar resultados da solucao analitica no equilibrio
+sim.res.e.s.ll <- matrix(NA, 2, nrep.ll*length(sim.comb.ll)) ## simulacao analitica no intervalo
+for(i in 1:length(sim.comb.ll)){
+    intervalo <- (i*nrep.ll-(nrep.ll-1)):(i*nrep.ll)
+    tmp <- do.call("sim.compet",
+                   args=list(obj=eval(parse(text=sim.comb.ll[i])), 
+                             data=experim1, nrep=nrep.ll))
+    sim.res.e.ll[,intervalo] <- tmp$estocast[ncol(experim1[[1]]),,]
+    sim.res.e.s.ll[,intervalo] <- tmp$sem.estocast[ncol(experim1[[1]]),,]
+    sim.res.a.ll[intervalo, ] <- tmp$analitico
+    }
+```
+
 
 Em reunião 19/03/2018 Pan propôs a hipótese de que quando juntas
 as duas espécies teriam probabilidades altas de se extinguir se mantivessem
 suas taxas de crescimento intrínseco originais (observadas nas culturas puras).
 Assim, reduzir a reprodução seria uma adaptação para não correr este risco.
+
+## Probabilidades de extinção com valores de $r$ altos
 
 Uma previsão desta hipótese é que as extinções devem ser um resultado
 frequente dos modelos de competição se usarmos nestes modelos os valores
@@ -428,24 +458,23 @@ A proporção das simulações que tiveram populações extintas e não extintas
 de cada espécie no tempo de um experimento foram:
 
 ```{r tabela extincoes}
-t1 <- table(sim.res.e[1,]>0, sim.res[2,]>0)/(nrep*nrow(sim.comb))
+t1 <- table(sim.res.e[1,]>0, sim.res.e[2,]>0)/(nrep*nrow(sim.comb))
 colnames(t1) <- c("N(Pyx) = 0", "N(Pyx) > 0")
 rownames(t1) <- c("N(Arc) = 0", "N(Arc) > 0")
 kable(t1, digits=3,
-      caption="Proporção de simulações do modelo de competição em a população de cada espécie chegou ao fim de 11.3 dias com tamanhos maiores que zero.")
+      caption="Proporção de simulações do modelo de competição estocástico com valores de r altos em que a população de cada espécie chegou ao fim de 11.3 dias com tamanhos maiores que zero.")
 ```
 
 O evento mais provável quando as duas espécies usam seus valores de $r$
 originais é a persistência de *Pyxidicula* apenas, seguido
 pela coexistência. A co-extinção e a persistência 
-apenas de *Arcella* têm baixa probabilidade.
+apenas de *Arcella* têm baixas probabilidades.
 
-Mas quando prolongamos a simulação para 60 dias
-a probabilidade de coexistência cai e a de persistência
-de apenas uma das espécies aumenta, o que sugere que
-a coexistência a longo prazo não é possível.
+Quando prolongamos para 60 dias esta simulação os resultados
+não mudam muito:
 
 ```{r tabela extincoes 60 dias}
+
 t1m <- table(sim.res[1,]>0, sim.res[2,]>0)/(nrep*nrow(sim.comb))
 colnames(t1m) <- c("N(Pyx) = 0", "N(Pyx) > 0")
 rownames(t1m) <- c("N(Arc) = 0", "N(Arc) > 0")
@@ -453,11 +482,18 @@ kable(t1m, digits=3,
       caption="Proporção de simulações do modelo de competição em a população de cada espécie chegou ao fim de 60 dias com tamanhos maiores que zero.")
 ```
 
-#### Modelos sem estocasticidade
+### Modelo determinístico
 
 Para avaliar se a estocasticidade altera o efeito,
 também calculei os tamanho das populações no equilíbrio
-segundo o modelo Lotka-Volterra sem estocasticidades.
+segundo o modelo Lotka-Volterra determinístico.
+
+Também simulei as dinâmicas com este modelo determinístico,
+no intervalo de duração do experimento
+
+#### Solução no equilíbrio do modelo determinístico 
+
+
 Estes valores no equilíbrio são:
 
 $$\hat A  =  \frac{K_1-\alpha K_2}{1-\alpha \beta}$$
@@ -479,19 +515,98 @@ de persistência e extinção no equilíbrio, sob este modelo.
 ```{r solucao analitica}
 t1a <- table(sim.res.a[,1]>0, sim.res.a[,2]>0)/(nrep*nrow(sim.comb))
 nce <- sum(sim.res.a[,1]>0 & sim.res.a[,2]>0 & !sim.res.a[,3])
-t1a[1,1] <- t1a[1,1]-nce/(nrep*nrow(sim.comb))
+t1a[2,2] <- t1a[1,1]-nce/(nrep*nrow(sim.comb))
 t1a[1,2] <- t1a[1,2]+nce/(nrep*nrow(sim.comb)*2)
 t1a[2,1] <- t1a[2,1]+nce/(nrep*nrow(sim.comb)*2)
 colnames(t1a) <- c("N(Pyx) = 0", "N(Pyx) > 0")
 rownames(t1a) <- c("N(Arc) = 0", "N(Arc) > 0")
 kable(t1a, digits=3,
-      caption="Proporção das combinações de parâmetros estimados em que  a população de cada espécie persiste, sob o modelo determinístico de competição.")
+      caption="Proporção de cálculos do equilíbrio determinístico com $r$ altos em que a população de cada espécie tem tamanhos maiores que zero.")
 ```
 
 Estes valores indicam que a coexistência não
-deveria ocorrer, ou é pouquíssimo provável, 
+deve ocorrer a longo prazo, ou é pouquíssimo provável, 
 caso as duas espécies mantivessem os valores de
-$K$ e $r$ observados nas culturas puras.
+$K$ e $r$ observados nas culturas puras. 
+
+
+#### Simulação determinística até o fim do experimento
+
+No entanto, se usamos o modelo determinístico para calcular os tamanhos populacionais 
+até o fim do experimento, há uma probabilidade grande das duas espécies terem
+populações maiores que zero:
+
+```{r tabela extincoes sem estocast 11,3 dias}
+t1m <- table(factor(sim.res.e.s[1,]>0, levels=c("FALSE","TRUE")),
+             factor(sim.res.e.s[2,]>0 , levels=c("FALSE", "TRUE")))/(nrep*nrow(sim.comb))
+colnames(t1m) <- c("N(Pyx) = 0", "N(Pyx) > 0")
+rownames(t1m) <- c("N(Arc) = 0", "N(Arc) > 0")
+kable(t1m, digits=3,
+      caption="Proporção de simulações do modelo de competição com valores de $r$ alto e sem estocasticidade em que a população de cada espécie chegou ao fim do experimento (11,3 dias) com tamanhos maiores que zero." )
+```
+
+Isto indica que pelo modelo determinístico o período de tempo do
+experimento não é suficiente para se chegar ao equilíbrio determinístico,
+e que a estocasticidade reduz as chances de coexistência.
+
+
+## Probabilidades de extinção com valores de $r$ baixos
+
+Fiz as mesmas simulações para o caso em os parâmetros $r$ e $K$
+das duas espécies são os observados nos experimentos de competição em
+que claramente houve redução do $r$ (experimentos 1, 2, 4, 6 e 7).
+
+
+### Probabilidade de persistência com  estocasticidade
+
+Com os valores de $r$ baixos a coexistência até o fim do experimento
+torna-se muito mais provável, mesmo com estocasticidade ambiental.
+
+
+```{r tabela extincoes LL}
+t1 <- table(sim.res.e.ll[1,]>0, sim.res.e.ll[2,]>0)/(nrep.ll*length(sim.comb.ll))
+colnames(t1) <- c("N(Pyx) = 0", "N(Pyx) > 0")
+rownames(t1) <- c("N(Arc) = 0", "N(Arc) > 0")
+kable(t1, digits=3,
+      caption="Proporção de simulações do modelo de competição estocástico com valores de r baixos em que a população de cada espécie chegou ao fim de 11.3 dias com tamanhos maiores que zero.")
+```
+
+### Modelo determinístico
+
+#### Probabilidade de persistência no equilíbrio determinístico
+
+Mesmo usando o equilíbrio determinístico, a probabilidade
+de coexistência é maior que zero, embora ainda
+muito baixa.
+
+```{r solucao analitica LL}
+t1b <- table(sim.res.a.ll[,1]>0, sim.res.a.ll[,2]>0)/(nrep.ll*length(sim.comb.ll))
+nce <- sum(sim.res.a.ll[,1]>0 & sim.res.a.ll[,2]>0 & !sim.res.a.ll[,3])
+t1b[2,2] <- t1b[2,2]-nce/(nrep.ll*length(sim.comb.ll))
+t1b[1,2] <- t1b[1,2]+nce/(nrep.ll*length(sim.comb.ll)*2)
+t1b[2,1] <- t1b[2,1]+nce/(nrep.ll*length(sim.comb.ll)*2)
+colnames(t1b) <- c("N(Pyx) = 0", "N(Pyx) > 0")
+rownames(t1b) <- c("N(Arc) = 0", "N(Arc) > 0")
+kable(t1b, digits=3,
+      caption="Proporção de cálculos do equilíbrio determinístico com $r$ baixos em que a população de cada espécie tem tamanhos maiores que zero.")
+```
+
+#### Simulação até o fim do experimento
+
+Se usamos os valores baixos de $r$ sem estocasticidade 
+há 100% de probabilidade de coexistência
+no intervalo de tempo do experimento:
+
+
+```{r tabela extincoes sem estocast no intervalo do experimento}
+t1m <- table(factor(sim.res.e.s.ll[1,]>0, levels=c("FALSE","TRUE")),
+             factor(sim.res.e.s.ll[2,]>0 , levels=c("FALSE", "TRUE")))/(nrep.ll*length(sim.comb.ll))
+colnames(t1m) <- c("N(Pyx) = 0", "N(Pyx) > 0")
+rownames(t1m) <- c("N(Arc) = 0", "N(Arc) > 0")
+kable(t1m, digits=3,
+      caption="Proporção de simulações do modelo de competição sem estocasticidade com valores de r baixos em que a população de cada espécie chegou ao fim de 11.3 dias com tamanhos maiores que zero.")
+```
+
 
 
 ## Matriz de *payoffs*

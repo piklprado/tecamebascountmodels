@@ -85,17 +85,21 @@ dem.pars <- function(object){
     }
     
 ## simulates a logistic dynamic as modelled 
-logist1 <- function(r, k, p, dt, sampArea, totArea=0.25*90, N0=50){
+logist1 <- function(r, k, p, dt, sampArea, totArea=0.25*90, N0=50, obs=TRUE){
     tot <- N0
-    n <- c()
+    n <- lamb <- c()
     for(t in 1:(length(dt))){
         mu <- tot + (r * tot * (1 - tot/k))*dt[t]
         tot <- rpois(1, mu)
-        lamb <- tot*sampArea/totArea
+        lamb[t] <- tot*sampArea/totArea
         N <- rpois(1,lamb)
         n[t] <- rbinom(1, N, p)
     }
-n    
+if(obs)    
+    return(n)
+else
+    return(lamb)
+    
 }
 
 ## sample from posterior of simulated logistic
@@ -113,7 +117,7 @@ post.logist <- function(obj, nrep=1000){
 }
 
 ## Simulates a logistic from their parameters
-sim.logist <- function(obj, data, sampArea, totArea=0.25*90, N0=50, nrep=1000){
+sim.logist <- function(obj, data, sampArea, totArea=0.25*90, N0=50, obs=FALSE, nrep=1000){
     dt <- diff(c(0,as.numeric(colnames(data))))
     results <- matrix(ncol=length(dt), nrow=nrep)
     for(j in 1:nrep){
@@ -121,12 +125,29 @@ sim.logist <- function(obj, data, sampArea, totArea=0.25*90, N0=50, nrep=1000){
         r <- obj$BUGSoutput$sims.list$r[i]
         k <- obj$BUGSoutput$sims.list$k[i]
         p <- obj$BUGSoutput$sims.list$p[i]
-        results[j,] <- logist1(r, k, p, dt, sampArea, totArea, N0)
+        results[j,] <- logist1(r, k, p, dt, sampArea, totArea, N0, obs=obs)
     }
     results
 }
 
-## Simulates the competition dynamics
+
+## Run simulations of logistic single-species dynamics nrep times with the same parameter values taken from posterior
+## Returns only the final population size
+sim.logist.final <- function(obj, data, dt, sampArea, totArea=0.25*90, N0=50, obs=FALSE, nrep=100){
+    if(missing(dt))
+        dt <- diff(c(0,as.numeric(colnames(data))))
+    results <- c()
+    i <- sample(1:length(obj$BUGSoutput$sims.list$r), 1)
+    for(j in 1:nrep){
+        r <- obj$BUGSoutput$sims.list$r[i]
+        k <- obj$BUGSoutput$sims.list$k[i]
+        p <- obj$BUGSoutput$sims.list$p[i]
+        results[j] <- logist1(r, k, p, dt, sampArea, totArea, N0, obs=obs)[length(dt)]
+    }
+    results
+}
+
+## Simulates the competition dynamics with stochasticity
 compet1 <- function(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea=0.25*90, A0=50, P0=50, obs=TRUE){
     A <- A0
     P <- P0
@@ -146,7 +167,31 @@ compet1 <- function(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea=0.25
     if(obs)
         cbind(yA,yP)
     else
-        cbind(lambA, lambP)
+        cbind(lambA, lambP) 
+}
+
+## Simulates the competition dynamics without
+compet2 <- function(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea=0.25*90, A0=50, P0=50, obs=TRUE){
+    A <- P <- c()
+    A[1] <- A0
+    P[1] <- P0
+    for(t in 2:(length(dt))){
+        A[t-1] <- ifelse(A[t-1] > 0, A[t-1] , 0)
+        P[t-1] <- ifelse(P[t-1] > 0, P[t-1] , 0)
+        A[t] <- A[t-1] + (rA * A[t-1] * (1 - ((A[t-1]+aPA*P[t-1])/kA)))*dt[t]
+        P[t] <- P[t-1] + (rP * P[t-1] * (1 - ((P[t-1]+aAP*A[t-1])/kP)))*dt[t]        
+    }
+    lambA <- A*sampArea/totArea
+    lambP <- P*sampArea/totArea
+    if(obs){
+        nA <- rpois(length(A) ,lambA)
+        nP <- rpois(length(A) ,lambA)
+        yA <- rbinom(length(nA), nA, pA)
+        yP <- rbinom(length(nA), nP, pP)
+        return(cbind(yA, yP))
+    }
+    else
+        return(cbind(lambA, lambP))
 }
 
 ## Posterior of competition, from expected posterior of expected population sizes
@@ -174,6 +219,7 @@ sim.compet <- function(obj, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0
         dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
     res.a <- matrix(NA, nrep, 3)
     res.est <- array( dim=c(length(dt), 2, nrep))
+    res.no.est <- array( dim=c(length(dt), 2, nrep))
     for(j in 1:nrep){
         i <- sample(1:length(obj$BUGSoutput$sims.list$rA), 1)
         rA <- obj$BUGSoutput$sims.list$rA[i]
@@ -187,10 +233,14 @@ sim.compet <- function(obj, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0
         A <- (kA - aAP*kP)/(1-aAP*aPA)
         P <- (kP - aPA*kA)/(1-aAP*aPA)
         estavel <- 1/aPA < kA/kP & kA/kP < aAP
+        ## Solucao analitica no equilibrio
         res.a[j,] <- c( A, P, estavel)
-        res.est[,,j] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)        
+        ## Simulacao com estocasticidade ambiental no intervalo definido em dt
+        res.est[,,j] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
+        ## simulacao sem estocasticidade ambiental (para estocasticidade observacional use obs=TRUE)
+        res.no.est[,,j] <- compet2(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)        
     }
-    list(analitico=res.a, estocast=res.est)
+    list(analitico=res.a, estocast=res.est, sem.estocast = res.no.est)
 }
 
 
@@ -200,6 +250,7 @@ sim.compet2 <- function(obj1, obj2, obj3, data, dt, sampArea=10*pi*0.25^2, totAr
         dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
     res.a <- matrix(NA, nrep, 3)
     res.est <- array( dim=c(length(dt), 2, nrep))
+    res.no.est <- array( dim=c(length(dt), 2, nrep))
     for(k in 1:nrep){
         i <- sample(1:length(obj1$BUGSoutput$sims.list$rA), 1)
         j <- sample(1:length(obj2$BUGSoutput$sims.list$r), 1)
@@ -216,9 +267,11 @@ sim.compet2 <- function(obj1, obj2, obj3, data, dt, sampArea=10*pi*0.25^2, totAr
         P <- (kP - aPA*kA)/(1-aAP*aPA)
         estavel <- 1/aPA < kA/kP & kA/kP < aAP
         res.a[k,] <- c( A, P, estavel)
-        res.est[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)        
+        res.est[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
+        ## simulacao sem estocasticidade ambiental (para estocasticidade observacional use obs=TRUE)
+        res.no.est[,,k] <- compet2(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs) 
     }
-    list(analitico=res.a, estocast=res.est)
+    list(analitico=res.a, estocast=res.est, sem.estocast = res.no.est)
 }
 
 
@@ -229,6 +282,7 @@ sim.compet3 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.2
         dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
     res.a <- matrix(NA, nrep, 3)
     res.est <- array( dim=c(length(dt), 2, nrep))
+    res.no.est <- array( dim=c(length(dt), 2, nrep))
     for(k in 1:nrep){
         i <- sample(1:length(obj1$BUGSoutput$sims.list$rA), 1)
         j <- sample(1:length(obj2$BUGSoutput$sims.list$r), 1)
@@ -245,8 +299,9 @@ sim.compet3 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.2
         estavel <- 1/aPA < kA/kP & kA/kP < aAP
         res.a[k,] <- c( A, P, estavel)
         res.est[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
+        res.no.est[,,k] <- compet2(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
     }
-    list(analitico=res.a, estocast=res.est)
+    list(analitico=res.a, estocast=res.est, sem.estocat = res.no.est)
 }
 
 ## Same simulation, but from parameters r and k taken from the pure cultures experiments only for Pixydiculla
@@ -255,6 +310,7 @@ sim.compet4 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.2
         dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
     res.a <- matrix(NA, nrep, 3)
     res.est <- array( dim=c(length(dt), 2, nrep))
+    res.no.est <- array( dim=c(length(dt), 2, nrep))
     for(k in 1:nrep){
         i <- sample(1:length(obj1$BUGSoutput$sims.list$rA), 1)
         j <- sample(1:length(obj2$BUGSoutput$sims.list$r), 1)
@@ -273,8 +329,31 @@ sim.compet4 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.2
         estavel <- 1/aPA < kA/kP & kA/kP < aAP
         res.a[k,] <- c( A, P, estavel)
         res.est[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
+        res.no.est[,,k] <- compet2(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
     }
-    list(analitico=res.a, estocast=res.est)
+    list(analitico=res.a, estocast=res.est, sem.estocast = res.no.est)
+}
+
+
+## Run simulations of competition dynamics nrep times with the same parameter values taken from posterior
+## Returns only the final population size
+sim.compet.final <- function(obj, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0=50, P0=50, nrep=100, obs=FALSE){
+    if(missing(dt))
+        dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
+    results <- matrix(NA, nrep, 2)
+    i <- sample(1:length(obj$BUGSoutput$sims.list$rA), 1)
+    for(j in 1:nrep){
+        rA <- obj$BUGSoutput$sims.list$rA[i]
+        kA <- obj$BUGSoutput$sims.list$kA[i]
+        pA <- obj$BUGSoutput$sims.list$pA[i]
+        rP <- obj$BUGSoutput$sims.list$rP[i]
+        kP <- obj$BUGSoutput$sims.list$kP[i]
+        pP <- obj$BUGSoutput$sims.list$pP[i]
+        aPA <- obj$BUGSoutput$sims.list$aPA[i]
+        aAP <- obj$BUGSoutput$sims.list$aAP[i]
+        results[j,] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)[length(dt),]        
+    }
+    results
 }
 
 

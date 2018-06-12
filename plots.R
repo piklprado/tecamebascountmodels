@@ -45,9 +45,11 @@ for(i in 2:7)
 for(i in 1:6)
     tmp1 <- rbind(tmp1, f2(lista2[[i]], exps[i], sps[i]))
 
-## The figures
+## The figure with parameters estimates and credibility intervals for all experiments
+##pdf("fig5_alt.pdf", width = 10.5)
+pdf("fig5_alt.pdf")
 
-#par(mar=c(5,6,4,0), mfrow=c(1,3), las=1)
+##par(mar=c(5,6,4,0), mfrow=c(1,3), las=1)
 par(fig=c(0.1,0.4,0,1), mar=c(5,1,4,1), new=TRUE, las=1)
 ## r
 espaco <- 0.1
@@ -90,8 +92,8 @@ abline(h=(1:7)+0.5,
        lty=rep(c(2,1),c(6,1)),
        col=rep(c("gray","black"), c(6,1)))
 par(las=0)
-mtext("Competition experiments", at=4, side=2, line=3.5, cex=1.5)
-mtext("Single culture", at=9, side=2, line=3.5, cex=1.5)
+mtext("Competition", at=4, side=2, line=2.75, cex=1.5)
+mtext("Mono-specific", at=9, side=2, line=2.75, cex=1.5)
 ################################################################################
 ## K
 ## Open frame
@@ -131,7 +133,7 @@ abline(h=(1:7)+0.5,
        lty=rep(c(2,1),c(6,1)),
        col=rep(c("gray","black"), c(6,1)))
 ################################################################################
-## coeficients
+## coefficients
 ## Open frame
 par(fig=c(0.7,1,0,0.78), las=1, new=TRUE)
 box()
@@ -151,9 +153,14 @@ with(subset(tmp1, sp=="P"&variable=="a"&type=="both"),{
     segments(lwr, (1:7) + espaco, upr, (1:7)+espaco, col="blue")
 }
 )
+## Legend
+legend(x = 0.05, y = 10, c("A. intermedia", "P. operculata"),
+       pch=19, lty=1, col=c("red", "blue"), bty="n")
 ## Axes, scales ...
 axis(1)
 abline(h=(1:6)+0.5,
        lty=2,
        col="gray")
 
+dev.off()
+################################################################################
