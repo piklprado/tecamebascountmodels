@@ -387,7 +387,7 @@ for(i in 1:nrow(sim.comb)){
     sim.res.e.a[intervalo, ] <- tmp$analitico
     }
 
-## Repetindo para 60 dias
+## Repetindo para 30 dias
 sim.res <- matrix(NA, 2, nrep*nrow(sim.comb)) ## para guardar resultados da simulacao estocastica
 sim.res.s <- matrix(NA, 2, nrep*nrow(sim.comb)) ## para guardar resultados da simulacao sem estocasticidade
 sim.res.a <- matrix(NA, nrep*nrow(sim.comb), 3) ## para guardar resultados dos valores no equilibrio analitico
@@ -421,6 +421,20 @@ for(i in 1:length(sim.comb.ll)){
     sim.res.e.s.ll[,intervalo] <- tmp$sem.estocast[ncol(experim1[[1]]),,]
     sim.res.a.ll[intervalo, ] <- tmp$analitico
     }
+## Para 30 dias
+sim.res.30.e.ll <- matrix(NA, 2, nrep.ll*length(sim.comb.ll))
+sim.res.30.a.ll <- matrix(NA, nrep.ll*length(sim.comb.ll), 3) ## para guardar resultados da solucao analitica no equilibrio
+sim.res.30.e.s.ll <- matrix(NA, 2, nrep.ll*length(sim.comb.ll)) ## simulacao analitica no intervalo
+dt <- rep(1/3, 90)
+for(i in 1:length(sim.comb.ll)){
+    intervalo <- (i*nrep.ll-(nrep.ll-1)):(i*nrep.ll)
+    tmp <- do.call("sim.compet",
+                   args=list(obj=eval(parse(text=sim.comb.ll[i])), 
+                             nrep=nrep.ll, dt = dt))
+    sim.res.30.e.ll[,intervalo] <- tmp$estocast[ncol(experim1[[1]]),,]
+    sim.res.30.e.s.ll[,intervalo] <- tmp$sem.estocast[ncol(experim1[[1]]),,]
+    sim.res.30.a.ll[intervalo, ] <- tmp$analitico
+    }
 ```
 
 
@@ -429,7 +443,16 @@ as duas espécies teriam probabilidades altas de se extinguir se mantivessem
 suas taxas de crescimento intrínseco originais (observadas nas culturas puras).
 Assim, reduzir a reprodução seria uma adaptação para não correr este risco.
 
-## Probabilidades de extinção com valores de $r$ altos
+Na subseções seguintes vão resultados de três previsões destas hipótese:
+
+- A probabilidade de coexistência deve ser baixa com valores altos de $r$
+- A probabilidade de coexistência deve ser mais alta com valores baixos de $r$
+- Se a redução da velocidade de reprodução é uma estratégia com duas táticas ($r$ alto e baixo)
+a escolha da tática de $r$ baixo pelas duas espécies deve ser um estado de equilíbrio comum
+em um modelo de jogos.
+
+
+## Probabilidades de coexistência com valores de r altos
 
 Uma previsão desta hipótese é que as extinções devem ser um resultado
 frequente dos modelos de competição se usarmos nestes modelos os valores
@@ -454,6 +477,17 @@ Com três experimentos de cultura pura por espécie e os cinco experimentos de c
 que mantive é possível fazer `r nrow(sim.comb)` combinações de distribuições *a posteriori*. 
 De cada uma destas combinações de Tomei `r nrep` amostras.
 
+Usei estes parâmetros sorteados para
+calcular os tamanhos populacionais de três maneiras:
+
+* Pelo modelo com estocasticidade, para a duração do experimento e após 30 dias
+* Pelos tamanhos populacionais no equilíbrio do modelo determinístico
+* Tamanhos populacionais pelo modelo determinístico, para a duração do experimento
+
+A seções a seguir mostram os resultados para cada um destas simulações
+
+### Modelo estocástico
+
 A proporção das simulações que tiveram populações extintas e não extintas
 de cada espécie no tempo de um experimento foram:
 
@@ -470,16 +504,18 @@ originais é a persistência de *Pyxidicula* apenas, seguido
 pela coexistência. A co-extinção e a persistência 
 apenas de *Arcella* têm baixas probabilidades.
 
-Quando prolongamos para 60 dias esta simulação os resultados
+#### Prolongando a simulação para 30 dias
+
+Não sei se este resultado ajuda em algo, mas quando prolongamos para 30 dias esta simulação os resultados
 não mudam muito:
 
-```{r tabela extincoes 60 dias}
+```{r tabela extincoes 30 dias}
 
 t1m <- table(sim.res[1,]>0, sim.res[2,]>0)/(nrep*nrow(sim.comb))
 colnames(t1m) <- c("N(Pyx) = 0", "N(Pyx) > 0")
 rownames(t1m) <- c("N(Arc) = 0", "N(Arc) > 0")
 kable(t1m, digits=3,
-      caption="Proporção de simulações do modelo de competição em a população de cada espécie chegou ao fim de 60 dias com tamanhos maiores que zero.")
+      caption="Proporção de simulações do modelo de competição em a população de cada espécie chegou ao fim de 30 dias com tamanhos maiores que zero.")
 ```
 
 ### Modelo determinístico
@@ -491,10 +527,11 @@ segundo o modelo Lotka-Volterra determinístico.
 Também simulei as dinâmicas com este modelo determinístico,
 no intervalo de duração do experimento
 
+
 #### Solução no equilíbrio do modelo determinístico 
 
 
-Estes valores no equilíbrio são:
+Os tamanho populacionais no equilíbrio são do modelo Lotka-Volterra são:
 
 $$\hat A  =  \frac{K_1-\alpha K_2}{1-\alpha \beta}$$
 
@@ -507,7 +544,8 @@ $$\frac{1}{\beta} \ < \ \frac{K_1}{K_2} \ < \ \alpha$$
 
 
 Então calculei estes valores de outras 5000 combinações de parâmetros sorteadas das posteriores
-da mesma maneira. A proporção destas combinações que resultam em tamanho populacionais
+da mesma maneira (valores de $r$ e $K$ tomados dos experimentos monoespecíficos, demais parâmetros
+dos experimentos de competição). A proporção destas combinações que resultam em tamanho populacionais
 no equilíbrio maior que zero e que cumprem a condição de estabilidade estimam as probabilidades
 de persistência e extinção no equilíbrio, sob este modelo. 
 
@@ -527,7 +565,7 @@ kable(t1a, digits=3,
 Estes valores indicam que a coexistência não
 deve ocorrer a longo prazo, ou é pouquíssimo provável, 
 caso as duas espécies mantivessem os valores de
-$K$ e $r$ observados nas culturas puras. 
+$K$ e $r$ observados nas culturas mono-específicas. 
 
 
 #### Simulação determinística até o fim do experimento
@@ -546,18 +584,20 @@ kable(t1m, digits=3,
 ```
 
 Isto indica que pelo modelo determinístico o período de tempo do
-experimento não é suficiente para se chegar ao equilíbrio determinístico,
-e que a estocasticidade reduz as chances de coexistência.
+experimento não é suficiente para se chegar ao equilíbrio determinístico.
+Comparando com a seção anterior, vemos que as probabilidades de coexistência
+pelo modelo determinístico são maiores do que com o modelo correspondente 
+com estocasticidade.
 
 
-## Probabilidades de extinção com valores de $r$ baixos
+## Probabilidades de coexistência com valores de r baixos
 
 Fiz as mesmas simulações para o caso em os parâmetros $r$ e $K$
 das duas espécies são os observados nos experimentos de competição em
 que claramente houve redução do $r$ (experimentos 1, 2, 4, 6 e 7).
 
 
-### Probabilidade de persistência com  estocasticidade
+### Modelos com  estocasticidade
 
 Com os valores de $r$ baixos a coexistência até o fim do experimento
 torna-se muito mais provável, mesmo com estocasticidade ambiental.
@@ -569,6 +609,16 @@ colnames(t1) <- c("N(Pyx) = 0", "N(Pyx) > 0")
 rownames(t1) <- c("N(Arc) = 0", "N(Arc) > 0")
 kable(t1, digits=3,
       caption="Proporção de simulações do modelo de competição estocástico com valores de r baixos em que a população de cada espécie chegou ao fim de 11.3 dias com tamanhos maiores que zero.")
+```
+
+#### Prolongando para 30 dias
+
+```{r tabela extincoes LL 30 dias}
+t1 <- table(sim.res.30.e.ll[1,]>0, sim.res.30.e.ll[2,]>0)/(nrep.ll*length(sim.comb.ll))
+colnames(t1) <- c("N(Pyx) = 0", "N(Pyx) > 0")
+rownames(t1) <- c("N(Arc) = 0", "N(Arc) > 0")
+kable(t1, digits=3,
+      caption="Proporção de simulações do modelo de competição estocástico com valores de r baixos em que a população de cada espécie chegou ao fim de 30 dias com tamanhos maiores que zero.")
 ```
 
 ### Modelo determinístico
@@ -609,10 +659,10 @@ kable(t1m, digits=3,
 
 
 
-## Matriz de *payoffs*
+## Equilíbrios em um jogo com duas estratégias
 
 
-Vamos supor que cada espécie tem a estratégia de manter $r$ alto ou baixo,
+Vamos supor que cada espécie tem a tática de manter $r$ alto ou baixo,
 e que fazem isto em reação ao que a outra está fazendo.
 Neste cenário simples podemos aplicar 
 [teoria de jogos básica](https://en.wikipedia.org/wiki/Normal-form_game)
@@ -729,6 +779,29 @@ pers.m1 <- matrix(
 kable(pers.m1, digits=3, caption="Posterior probabilities of Nash equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics ran till 11.3 days. Payoff: probability of population persistence at the end of simulations.")
 ```
 
+#### Probabilidades de persistência em cada estratégia
+
+Abaixo a proporção das simulações em que cada população
+persistiu (N >0), para cada combinação de estratégia
+
+##### Para duração do experimento 
+
+```{r probs persistencias em cada comb de estrateg 11.3 dias}
+apply(sapply(post.Nash.short, f1, i=2, j=1, k=12), 1, mean)[5:12] %>%
+    matrix(, ncol=2, byrow=TRUE,
+           dimnames=list(c("LL","LH", "HL", "HH"), c("Arcella", "Pyxidiculla"))) %>%
+    kable( digits=3, caption="Posterior probabilities of population persistence for each combination of strategies. Probabilities calculated from simulations of the competition dynamics ran till 11.3 days.")
+```
+
+##### Para duração do experimento 
+
+```{r probs persistencias em cada comb de estrateg 30 dias}
+apply(sapply(post.Nash, f1, i=2, j=1, k=12), 1, mean)[5:12] %>%
+    matrix(, ncol=2, byrow=TRUE,
+           dimnames=list(c("LL","LH", "HL", "HH"), c("Arcella", "Pyxidiculla"))) %>%
+    kable( digits=3, caption="Posterior probabilities of population persistence for each combination of strategies. Probabilities calculated from simulations of the competition dynamics ran till 30 days.")
+```
+
 ### Payoffs baseados no tamanho populacional médio
 
 A seguir os mesmos cálculos, mas usando como *payoffs*
@@ -747,6 +820,7 @@ kable(pops.m2, digits=3, caption="Posterior probabilities of Nash equilibrium fo
 ```
 
 
+
 # Pontos a discutir
 
 * Grande redução das abundâncias quando as espécies são mantidas juntas. OK
@@ -755,13 +829,22 @@ kable(pops.m2, digits=3, caption="Posterior probabilities of Nash equilibrium fo
 pela queda nas taxas de crescimento, e também por sua variação entre experimentos.
 Precisamos entender melhor este resultado, pois no modelo clássico Lotka-Volterra
 o parâmetro $r$ seria uma característica intrínseca da espécie, enquanto o ambiente poderia
-alterar mais facilmente $K$ e mesmo os coeficientes de competição.
+alterar mais facilmente $K$ e mesmo os coeficientes de competição. 
+Uma possibilidade: calcular os componentes da variação dos atamnhos populacionais
+* Na duração do experimento (11,3 dias) a probabilidade de coexistência
+é alta se usamos os valores de $r$ e $K$ dos experimentos de competição. A estocasticidade reduz esta probablidade. 
+Se prolongamos ou tempo ou calculamos o equilíbrio vemos que a probabilidade de persistência é bem menor.
+Estes resultados mostram que a coexistência nos experimentos é um transiente.
 * Análises baseadas em teoria de jogos com duas estratégias para cada espécie (baixar ou manter $r$) mostra
 que as duas espécies baixarem o seus $r$ é uma combinação de estratégias
 que pode ser estável, mas não sempre. Mais do que isto, outras combinações
 têm maiores probabilidades. Também há variações importantes nestes resultados em função
 do critério de estabilidade usado e de quanto tempo a simulação corre para
 calcular os *payoffs*.
+* As probabilidades de persistência de *Pyxidiculla* são altas em todas as combinações de estratégias.
+Já para *Arcella* são bem menores para a combinação HH, e em geral um pouco menor para as outras.
+Importante notar que as probabilidades de persistência em 11.3 dias são próximas de 1 para
+as duas espécies (exceto para *Arcella* em HH).
 
 # References
 
