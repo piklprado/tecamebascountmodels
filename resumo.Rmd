@@ -762,6 +762,7 @@ ou seja a probabilidade posterior de que cada combinação de estratégias seja 
 
 Abaixo tabela com estas probabilidades para *payoffs* baseados na probabilidade de persistência
 
+### Para a duração do experimento
 
 ```{r prob strategies pop persist}
 f1 <- function(x, i, j, k){
@@ -774,6 +775,21 @@ pers.m1 <- matrix(
     dimnames=list(c("Equilíbrio de Nash", "Equilíbrio geral"), c("LL", "LH", "HL", "HH"))
 )
 kable(pers.m1, digits=3, caption="Posterior probabilities of Nash equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics ran till 11.3 days. Payoff: probability of population persistence at the end of simulations.")
+```
+
+### Para 30 dias
+
+```{r prob strategies pop persist 30 days}
+f1 <- function(x, i, j, k){
+    apply(x[[i]][,j:k], 2, mean)
+}
+pers.m2 <- matrix(
+    c(apply(sapply(post.Nash, f1, i=2, j=1, k=12), 1, mean)[1:4],
+      apply(results, 2, mean)),
+    byrow=TRUE, ncol=4,
+    dimnames=list(c("Equilíbrio de Nash", "Equilíbrio geral"), c("LL", "LH", "HL", "HH"))
+)
+kable(pers.m2, digits=3, caption="Posterior probabilities of Nash equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics ran till 30 days. Payoff: probability of population persistence at the end of simulations.")
 ```
 
 ## Probabilidades de persistência em cada estratégia
