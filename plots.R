@@ -15,6 +15,49 @@ load("cluster/compfit5.RData")
 load("cluster/compfit6.RData")
 load("cluster/compfit7.RData")
 
+## Plots
+## For logistics
+p1 <- function(zoo.obj, col="blue"){
+    zoo.obj %>%
+        fortify() %>%
+        ggplot(aes(Index, obsm)) +
+        geom_point(size=2, colour=col) +
+        geom_ribbon(aes(ymin=post.low, ymax=post.up), alpha=0.25, fill=col) +
+        scale_y_continuous(name="")+
+        scale_x_continuous(name="")+
+        theme_bw()
+    }
+
+## for competition
+## Predicted total abundances
+p2 <- function(zoo.obj){
+    fortify(zoo.obj) %>%
+        ggplot(aes(Index, espA)) +
+        geom_line(colour="red", lwd=1) +
+        geom_ribbon(aes(ymin=espA.low, ymax=espA.up), alpha=0.25, fill="red") +
+        geom_line(aes(Index,espP),colour="blue", lwd=1) +
+        geom_ribbon(aes(ymin=espP.low, ymax=espP.up), alpha=0.25, fill="blue") +
+        scale_y_continuous(name="Expected density of cells (1/cm2)")+
+        scale_x_continuous(name="Time (days)")+
+        theme_bw()
+}
+
+## Predicted counts and credible intervals (including detection)
+p3 <- function(zoo.obj){
+    fortify(zoo.obj) %>%
+        ggplot(aes(Index, obsA)) +
+        geom_point(colour="red", size=2) +
+        geom_ribbon(aes(ymin=projA.low, ymax=projA.up), alpha=0.25, fill="red") +
+        geom_point(aes(Index,obsP),colour="blue", size=2) +
+        geom_ribbon(aes(ymin=projP.low, ymax=projP.up), alpha=0.25, fill="blue") +
+        scale_y_continuous(name="")+
+        scale_x_continuous(name="")+
+        theme_bw()
+    }
+###
+
+##
+
 f1 <- function(obj, index){
     x <- as.data.frame(summary(as.mcmc(obj)[,c("rA","rP","kA","kP","aAP", "aPA")], quantile=c(0.025,0.5,0.975))[[2]])
     names(x) <- c("lwr", "median", "upr")
@@ -45,6 +88,44 @@ for(i in 2:7)
 for(i in 1:6)
     tmp1 <- rbind(tmp1, f2(lista2[[i]], exps[i], sps[i]))
 
+
+
+
+################################################################################
+## ----single species obs x pred, fig.height=12----------------------------
+pdf("growth.pdf", width=9, height = 9)
+pP1 <- p1(summary.df(fit.P1, data=pyx1)) + ggtitle("P. operculata")
+pP2 <- p1(summary.df(fit.P2, data=pyx2))
+pP3 <- p1(summary.df(fit.P3, data=pyx3))
+## Arcella
+pA1 <- p1(summary.df(fit.A1, data=arc1), col="red") + ggtitle("A. intermedia")
+pA2 <- p1(summary.df(fit.A2, data=arc2), col="red")
+pA3 <- p1(summary.df(fit.A3, data=arc3), col="red")
+grid.arrange(pP1,  pA1, pP2, pA2, pP3, pA3,
+             bottom=textGrob("Time (days)", gp=gpar(fontsize=18)),
+             left=textGrob("Number of cells", rot=90, gp=gpar(fontsize=18)))
+dev.off()
+################################################################################
+
+## ----competition obs x predicted counts, fig.height=13.5-----------------
+pdf("competition.pdf", width=9, height = 12)
+pe1 <- p3(summary.df2(fit1, experim1)) + ggtitle("Experiment #1") +
+    annotate("text", x = c(8,9.5), y = c(70,5),
+             label = c("P.operculata","A. intermedia"),
+             color=c("blue","red"), size = 4)
+pe2 <- p3(summary.df2(fit2, experim2)) + ggtitle("Experiment #2")
+pe3 <- p3(summary.df2(fit3, experim3)) + ggtitle("Experiment #3")
+pe4 <- p3(summary.df2(fit4, experim4)) + ggtitle("Experiment #4")
+pe5 <- p3(summary.df2(fit5, experim5)) + ggtitle("Experiment #5")
+pe6 <- p3(summary.df2(fit6, experim6)) + ggtitle("Experiment #6")
+pe7 <- p3(summary.df2(fit7, experim7)) + ggtitle("Experiment #7")
+grid.arrange(pe1,pe2,pe3,pe4,pe5,pe6,pe7, ncol=2,
+             bottom=textGrob("Time (days)", gp=gpar(fontsize=18)),
+             left=textGrob("Number of cells", rot=90, gp=gpar(fontsize=18)))
+dev.off()
+
+
+################################################################################
 ## The figure with parameters estimates and credibility intervals for all experiments
 ##pdf("fig5_alt.pdf", width = 10.5)
 pdf("fig5_alt.pdf")
