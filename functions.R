@@ -301,7 +301,7 @@ sim.compet3 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.2
         res.est[,,k] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
         res.no.est[,,k] <- compet2(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
     }
-    list(analitico=res.a, estocast=res.est, sem.estocat = res.no.est)
+    list(analitico=res.a, estocast=res.est, sem.estocast = res.no.est)
 }
 
 ## Same simulation, but from parameters r and k taken from the pure cultures experiments only for Pixydiculla

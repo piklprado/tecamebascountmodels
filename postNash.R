@@ -36,7 +36,7 @@ sim.Nash.par <- function(i, nomes.objs,...){
 }
 
 ## 30 days
- post.Nash <- parLapply(cl1, X=1:nrow(sim.comb.nash), fun=sim.Nash.par,
+post.Nash <- parLapply(cl1, X=1:nrow(sim.comb.nash), fun=sim.Nash.par,
                         nomes.obj = sim.comb.nash, dt=dt30, data=experim1, nsamp=30, nrep=100)
 ## Only the time of the experiment (11.3 days)
 post.Nash.short <- parLapply(cl1, X=1:nrow(sim.comb.nash), fun=sim.Nash.par,

@@ -378,13 +378,13 @@ sim.res.e.s <- matrix(NA, 2, nrep*nrow(sim.comb)) ## para guardar resultados da 
 sim.res.e.a <- matrix(NA, nrep*nrow(sim.comb), 3) ## para guardar resultados dos valores no equilibrio analitico
 for(i in 1:nrow(sim.comb)){
     intervalo <- (i*nrep-(nrep-1)):(i*nrep)
-    tmp <- do.call("sim.compet2",
+    tmp.hh <- do.call("sim.compet2",
                    args=list(obj1=eval(parse(text=sim.comb[i,1])), obj2=eval(parse(text=sim.comb[i,2])),
                              obj3=eval(parse(text=sim.comb[i,3])),
                              data=experim1, nrep=nrep, dt=dt))
-    sim.res.e[,intervalo] <- tmp$estocast[length(dt),,]
-    sim.res.e.s[,intervalo] <- tmp$sem.estocast[length(dt),,]
-    sim.res.e.a[intervalo, ] <- tmp$analitico
+    sim.res.e[,intervalo] <- tmp.hh$estocast[length(dt),,]
+    sim.res.e.s[,intervalo] <- tmp.hh$sem.estocast[length(dt),,]
+    sim.res.e.a[intervalo, ] <- tmp.hh$analitico
     }
 
 ## Repetindo para 30 dias
@@ -394,13 +394,13 @@ sim.res.a <- matrix(NA, nrep*nrow(sim.comb), 3) ## para guardar resultados dos v
 dt <- rep(1/3, 90)
 for(i in 1:nrow(sim.comb)){
     intervalo <- (i*nrep-(nrep-1)):(i*nrep)
-    tmp <- do.call("sim.compet2",
+    tmp.hh.30 <- do.call("sim.compet2",
                    args=list(obj1=eval(parse(text=sim.comb[i,1])), obj2=eval(parse(text=sim.comb[i,2])),
                              obj3=eval(parse(text=sim.comb[i,3])),
                              data=experim1, nrep=nrep, dt=dt))
-    sim.res[,intervalo] <- tmp$estocast[length(dt),,]
-    sim.res.s[,intervalo] <- tmp$sem.estocast[length(dt),,]
-    sim.res.a[intervalo, ] <- tmp$analitico
+    sim.res[,intervalo] <- tmp.hh.30$estocast[length(dt),,]
+    sim.res.s[,intervalo] <- tmp.hh.30$sem.estocast[length(dt),,]
+    sim.res.a[intervalo, ] <- tmp.hh.30$analitico
     }
 ```
 
@@ -414,12 +414,12 @@ sim.res.a.ll <- matrix(NA, nrep.ll*length(sim.comb.ll), 3) ## para guardar resul
 sim.res.e.s.ll <- matrix(NA, 2, nrep.ll*length(sim.comb.ll)) ## simulacao analitica no intervalo
 for(i in 1:length(sim.comb.ll)){
     intervalo <- (i*nrep.ll-(nrep.ll-1)):(i*nrep.ll)
-    tmp <- do.call("sim.compet",
+    tmp.ll <- do.call("sim.compet",
                    args=list(obj=eval(parse(text=sim.comb.ll[i])), 
                              data=experim1, nrep=nrep.ll))
-    sim.res.e.ll[,intervalo] <- tmp$estocast[ncol(experim1[[1]]),,]
-    sim.res.e.s.ll[,intervalo] <- tmp$sem.estocast[ncol(experim1[[1]]),,]
-    sim.res.a.ll[intervalo, ] <- tmp$analitico
+    sim.res.e.ll[,intervalo] <- tmp.ll$estocast[ncol(experim1[[1]]),,]
+    sim.res.e.s.ll[,intervalo] <- tmp.ll$sem.estocast[ncol(experim1[[1]]),,]
+    sim.res.a.ll[intervalo, ] <- tmp.ll$analitico
     }
 ## Para 30 dias
 sim.res.30.e.ll <- matrix(NA, 2, nrep.ll*length(sim.comb.ll))
@@ -428,15 +428,57 @@ sim.res.30.e.s.ll <- matrix(NA, 2, nrep.ll*length(sim.comb.ll)) ## simulacao ana
 dt <- rep(1/3, 90)
 for(i in 1:length(sim.comb.ll)){
     intervalo <- (i*nrep.ll-(nrep.ll-1)):(i*nrep.ll)
-    tmp <- do.call("sim.compet",
+    tmp.ll.30 <- do.call("sim.compet",
                    args=list(obj=eval(parse(text=sim.comb.ll[i])), 
                              nrep=nrep.ll, dt = dt))
-    sim.res.30.e.ll[,intervalo] <- tmp$estocast[ncol(experim1[[1]]),,]
-    sim.res.30.e.s.ll[,intervalo] <- tmp$sem.estocast[ncol(experim1[[1]]),,]
-    sim.res.30.a.ll[intervalo, ] <- tmp$analitico
+    sim.res.30.e.ll[,intervalo] <- tmp.ll.30$estocast[ncol(experim1[[1]]),,]
+    sim.res.30.e.s.ll[,intervalo] <- tmp.ll.30$sem.estocast[ncol(experim1[[1]]),,]
+    sim.res.30.a.ll[intervalo, ] <- tmp.ll.30$analitico
     }
 ```
 
+
+```{r compet simul HL and LH}
+##  HL: Simulacao com valores de r de Arcella altos
+sim.comb.hl <- sapply(expand.grid(paste("fit",c(1,2,4,6,7), sep=""),
+                        paste("fit.A",1:3, sep="")),
+                     as.character)
+dt <- diff(as.numeric(colnames(experim1[[1]])))
+nrep.hl <- round(5000/nrow(sim.comb.hl))
+sim.res.e.hl <- matrix(NA, 2, nrep.hl*nrow(sim.comb.hl)) ## para guardar resultados da simulacao estocastica
+sim.res.e.s.hl <- matrix(NA, 2, nrep.hl*nrow(sim.comb.hl)) ## para guardar resultados da simulacao sem estocasticidade
+sim.res.e.a.hl <- matrix(NA, nrep.hl*nrow(sim.comb.hl), 3) ## para guardar resultados dos valores no equilibrio analitico
+for(i in 1:nrow(sim.comb.hl)){
+    intervalo <- (i*nrep.hl-(nrep.hl-1)):(i*nrep.hl)
+    tmp.lh <- do.call("sim.compet3",
+                   args=list(obj1=eval(parse(text=sim.comb.hl[i,1])),
+                             obj2=eval(parse(text=sim.comb.hl[i,2])),
+                             dt=dt, nrep=nrep.hl))
+    sim.res.e.hl[,intervalo] <- tmp.lh$estocast[length(dt),,]
+    sim.res.e.s.hl[,intervalo] <- tmp.lh$sem.estocast[length(dt),,]
+    sim.res.e.a.hl[intervalo, ] <- tmp.lh$analitico
+    }
+
+## LH: Simulacao com valores de r de Pyxidicula altos
+sim.comb.lh <- sapply(expand.grid(paste("fit",c(1,2,4,6,7), sep=""),
+                        paste("fit.P",1:3, sep="")),
+                     as.character)
+dt <- diff(as.numeric(colnames(experim1[[1]])))
+nrep.lh <- round(5000/nrow(sim.comb.lh))
+sim.res.e.lh <- matrix(NA, 2, nrep.lh*nrow(sim.comb.lh)) ## para guardar resultados da simulacao estocastica
+sim.res.e.s.lh <- matrix(NA, 2, nrep.lh*nrow(sim.comb.lh)) ## para guardar resultados da simulacao sem estocasticidade
+sim.res.e.a.lh <- matrix(NA, nrep.lh*nrow(sim.comb.lh), 3) ## para guardar resultados dos valores no equilibrio analitico
+for(i in 1:nrow(sim.comb.lh)){
+    intervalo <- (i*nrep.lh-(nrep.lh-1)):(i*nrep.lh)
+    tmp.hl <- do.call("sim.compet4",
+                   args=list(obj1=eval(parse(text=sim.comb.lh[i,1])),
+                             obj2=eval(parse(text=sim.comb.lh[i,2])),
+                             dt = dt, nrep=nrep.lh))
+    sim.res.e.lh[,intervalo] <- tmp.hl$estocast[length(dt),,]
+    sim.res.e.s.lh[,intervalo] <- tmp.hl$sem.estocast[length(dt),,]
+    sim.res.e.a.lh[intervalo, ] <- tmp.hl$analitico
+    }
+```
 
 Em reunião 19/03/2018 Pan propôs a hipótese de que quando juntas
 as duas espécies teriam probabilidades altas de se extinguir se mantivessem
@@ -492,7 +534,7 @@ A proporção das simulações que tiveram populações extintas e não extintas
 de cada espécie no tempo de um experimento foram:
 
 ```{r tabela extincoes}
-t1 <- table(sim.res.e[1,]>0, sim.res.e[2,]>0)/(nrep*nrow(sim.comb))
+t1 <- table(sim.res.e[1,]>0, sim.res.e[2,]>0)/(length(sim.res.e[1,]))
 colnames(t1) <- c("N(Pyx) = 0", "N(Pyx) > 0")
 rownames(t1) <- c("N(Arc) = 0", "N(Arc) > 0")
 kable(t1, digits=3,
@@ -511,7 +553,7 @@ não mudam muito:
 
 ```{r tabela extincoes 30 dias}
 
-t1m <- table(sim.res[1,]>0, sim.res[2,]>0)/(nrep*nrow(sim.comb))
+t1m <- table(sim.res[1,]>0, sim.res[2,]>0)/length(sim.res[1,])
 colnames(t1m) <- c("N(Pyx) = 0", "N(Pyx) > 0")
 rownames(t1m) <- c("N(Arc) = 0", "N(Arc) > 0")
 kable(t1m, digits=3,
@@ -576,7 +618,7 @@ populações maiores que zero:
 
 ```{r tabela extincoes sem estocast 11,3 dias}
 t1m <- table(factor(sim.res.e.s[1,]>0, levels=c("FALSE","TRUE")),
-             factor(sim.res.e.s[2,]>0 , levels=c("FALSE", "TRUE")))/(nrep*nrow(sim.comb))
+             factor(sim.res.e.s[2,]>0 , levels=c("FALSE", "TRUE")))/length(sim.res.e.s[1,])
 colnames(t1m) <- c("N(Pyx) = 0", "N(Pyx) > 0")
 rownames(t1m) <- c("N(Arc) = 0", "N(Arc) > 0")
 kable(t1m, digits=3,
@@ -604,7 +646,7 @@ torna-se muito mais provável, mesmo com estocasticidade ambiental.
 
 
 ```{r tabela extincoes LL}
-t1 <- table(sim.res.e.ll[1,]>0, sim.res.e.ll[2,]>0)/(nrep.ll*length(sim.comb.ll))
+t1 <- table(sim.res.e.ll[1,]>0, sim.res.e.ll[2,]>0)/length(sim.res.e.ll[1,])
 colnames(t1) <- c("N(Pyx) = 0", "N(Pyx) > 0")
 rownames(t1) <- c("N(Arc) = 0", "N(Arc) > 0")
 kable(t1, digits=3,
@@ -614,7 +656,7 @@ kable(t1, digits=3,
 #### Prolongando para 30 dias
 
 ```{r tabela extincoes LL 30 dias}
-t1 <- table(sim.res.30.e.ll[1,]>0, sim.res.30.e.ll[2,]>0)/(nrep.ll*length(sim.comb.ll))
+t1 <- table(sim.res.30.e.ll[1,]>0, sim.res.30.e.ll[2,]>0)/length(sim.res.30.e.ll[1,])
 colnames(t1) <- c("N(Pyx) = 0", "N(Pyx) > 0")
 rownames(t1) <- c("N(Arc) = 0", "N(Arc) > 0")
 kable(t1, digits=3,
@@ -650,13 +692,43 @@ no intervalo de tempo do experimento:
 
 ```{r tabela extincoes sem estocast no intervalo do experimento}
 t1m <- table(factor(sim.res.e.s.ll[1,]>0, levels=c("FALSE","TRUE")),
-             factor(sim.res.e.s.ll[2,]>0 , levels=c("FALSE", "TRUE")))/(nrep.ll*length(sim.comb.ll))
+             factor(sim.res.e.s.ll[2,]>0 , levels=c("FALSE", "TRUE")))/length(sim.res.e.s.ll[1,])
 colnames(t1m) <- c("N(Pyx) = 0", "N(Pyx) > 0")
 rownames(t1m) <- c("N(Arc) = 0", "N(Arc) > 0")
 kable(t1m, digits=3,
       caption="Proporção de simulações do modelo de competição sem estocasticidade com valores de r baixos em que a população de cada espécie chegou ao fim de 11.3 dias com tamanhos maiores que zero.")
 ```
 
+## Probabilidades de persistência para LH e HL
+
+Resultados para modelo com estocasticidade, 
+pela duração do experimento
+
+### Arcella com r alto e Pyxidiculla com r baixo
+
+```{r tabela extincoes HL}
+t1 <- table(factor(sim.res.e.hl[1,]>0, levels=c("FALSE","TRUE")),
+             factor(sim.res.e.hl[2,]>0 , levels=c("FALSE", "TRUE")))/length(sim.res.e.hl[1,])
+colnames(t1) <- c("N(Pyx) = 0", "N(Pyx) > 0")
+rownames(t1) <- c("N(Arc) = 0", "N(Arc) > 0")
+kable(t1, digits=3,
+      caption="Proporção de simulações do modelo de competição estocástico
+ com valores de r altos para *Arcella* e baixos para *Pixydiculla*
+em que a população de cada espécie chegou ao fim de 11.3 dias com tamanhos maiores que zero.")
+```
+
+### Pyxidiculla com r alto e Arcella  com r baixo
+
+```{r tabela extincoes LH}
+t1 <- table(factor(sim.res.e.lh[1,]>0, levels=c("FALSE","TRUE")),
+             factor(sim.res.e.lh[2,]>0 , levels=c("FALSE", "TRUE")))/length(sim.res.e.lh[1,])
+colnames(t1) <- c("N(Pyx) = 0", "N(Pyx) > 0")
+rownames(t1) <- c("N(Arc) = 0", "N(Arc) > 0")
+kable(t1, digits=3,
+      caption="Proporção de simulações do modelo de competição estocástico
+ com valores de r altos para *Pixydiculla* e baixos para *Arcella*
+em que a população de cada espécie chegou ao fim de 11.3 dias com tamanhos maiores que zero.")
+```
 
 
 ## Equilíbrios em um jogo com duas estratégias
@@ -790,29 +862,6 @@ pers.m2 <- matrix(
     dimnames=list(c("Equilíbrio de Nash", "Equilíbrio geral"), c("LL", "LH", "HL", "HH"))
 )
 kable(pers.m2, digits=3, caption="Posterior probabilities of Nash equilibrium for each combination of strategies. Probabilities calculated from simulations of the competition dynamics ran till 30 days. Payoff: probability of population persistence at the end of simulations.")
-```
-
-## Probabilidades de persistência em cada estratégia
-
-Abaixo a proporção das simulações em que cada população
-persistiu (N >0), para cada combinação de estratégia
-
-### Para duração do experimento 
-
-```{r probs persistencias em cada comb de estrateg 11.3 dias}
-apply(sapply(post.Nash.short, f1, i=2, j=1, k=12), 1, mean)[5:12] %>%
-    matrix(, ncol=2, byrow=TRUE,
-           dimnames=list(c("LL","LH", "HL", "HH"), c("Arcella", "Pyxidiculla"))) %>%
-    kable( digits=3, caption="Posterior probabilities of population persistence for each combination of strategies. Probabilities calculated from simulations of the competition dynamics ran till 11.3 days.")
-```
-
-### Para 30 dias
-
-```{r probs persistencias em cada comb de estrateg 30 dias}
-apply(sapply(post.Nash, f1, i=2, j=1, k=12), 1, mean)[5:12] %>%
-    matrix(, ncol=2, byrow=TRUE,
-           dimnames=list(c("LL","LH", "HL", "HH"), c("Arcella", "Pyxidiculla"))) %>%
-    kable( digits=3, caption="Posterior probabilities of population persistence for each combination of strategies. Probabilities calculated from simulations of the competition dynamics ran till 30 days.")
 ```
 
 

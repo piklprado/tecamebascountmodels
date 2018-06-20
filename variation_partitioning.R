@@ -110,12 +110,14 @@ pyx.part$experiment <- with(pyx.part, paste(substr(type,1,1),experiment,sep=".")
 
 ## Exploratory boxplots
 par(mfrow=c(1,2))
-## Expected number of cells in the sample
+## Expected number of cells in the sample at the end experiments
 boxplot(A *(10*pi*0.25^2)/(0.25*90) ~ experiment, data=arc.part, main="Arcella")
 boxplot(P * (10*pi*0.25^2)/(0.25*90) ~ experiment, data=pyx.part, main="Pyxidiculla")
 par(mfrow=c(1,1))
 
-## Repeatability from Poisson models 
+## Repeatability from Poisson models
+## Including mono-specific cultures
+## Arcella
 rep.A <- rptPoisson(A ~ type + (1 | experiment) + (1 | replicate),
             grname = c("experiment", "replicate", "Fixed", "Residual"),
             data = arc.part, nboot = 200,
@@ -129,10 +131,25 @@ save.image()
 summary(rep.P)
 summary(rep.A)
 
+## Only for competition experiments
+## Arcella
+repC.A <- rptPoisson(A ~ 1 + (1 | experiment) + (1 | replicate),
+            grname = c("experiment", "replicate", "Residual", "Overdispersion"),
+            data = arc.part[arc.part$type=="compet",], nboot = 200,
+            npermut = 0, parallel=TRUE, ncores = 4)
+## Pyxidicolla
+repC.P <- rptPoisson(P ~ 1 + (1 | experiment) + (1 | replicate),
+            grname = c("experiment", "replicate", "Residual", "Overdispersion"),
+            data = pyx.part[pyx.part$type=="compet",], nboot = 200, 
+            npermut = 0, parallel=TRUE, ncores = 4)
+save.image()
+summary(repC.A)
+summary(repC.P)
+
+
+
 ## 2. Probability of coexistence
-## 1. Variance partitioning of final abundances
 ## Assembling data.frames 
-## 
 coex.part <- sim.final.comp[[1]]
 for(i in 2:length(sim.final.comp))
     coex.part <- rbind(coex.part, sim.final.comp[[i]])
@@ -143,11 +160,55 @@ coex.part$replicate <- with(coex.part, paste(experiment,replicate, sep="."))
 coex.prop <- coex.part %>%
     group_by(experiment, replicate) %>%
     summarise(total=n(),
-              n.A = sum(A>0), n.P=sum(P>0), n.coex = sum(A>0&P>0),
-              p.A = n.A/total, p.P= n.P/total, p.coex=n.coex/total)
+              n.A = sum(A>0), n.P=sum(P>0),
+              n.coex = sum(A>0&P>0), n.nocoex = total - n.coex,
+              p.A = n.A/total, p.P= n.P/total, p.coex=n.coex/total) %>%
+    as.data.frame()
+## Variation in simulated ratios between population sizes
+with(coex.part, var(P/A))
 ## Exploratory plots
 boxplot(p.coex~experiment, data=coex.prop)
+boxplot(I(n.P/n.A) ~ experiment, data=coex.prop)
 boxplot(p.A~experiment, data=coex.prop)
 boxplot(p.P~experiment, data=coex.prop)
+## Relationship between abundances for each experiment
+coex.part %>%
+    mutate(repl = factor(substr(replicate,5,5))) %>%
+    ggplot(aes(P, A)) +
+    geom_point(aes(colour=repl), alpha=0.25) +
+    facet_wrap(~experiment)
 
+## Variation partitioning in probability of coexistence
+rep.pcoex <- rpt(cbind(n.coex, n.nocoex) ~ 1 + (1 | experiment) + (1 | replicate),
+              grname = c("experiment", "replicate", "Residual"),
+              datatype = "Proportion",
+              data = coex.prop, nboot = 200, 
+              npermut = 0, parallel=TRUE, ncores = 4)
+rep.pcoexV <- rpt(cbind(n.coex, n.nocoex) ~ 1 + (1 | experiment) + (1 | replicate),
+              grname = c("experiment", "replicate", "Residual"),
+              datatype = "Proportion", ratio=FALSE,
+              data = coex.prop, nboot =0) 
+summary(rep.pcoex)
+## Variation partitioning in the proportion P/A
+rep.pPA <- rpt(cbind(P, A) ~ 1 + (1 | experiment) + (1 | replicate),
+              grname = c("experiment", "replicate", "Residual"),
+              datatype = "Proportion",
+              data = coex.part, nboot = 200, 
+              npermut = 0, parallel=TRUE, ncores = 4)
+## Variances
+rep.pPAV <- rpt(cbind(P, A) ~ 1 + (1 | experiment) + (1 | replicate),
+              grname = c("experiment", "replicate", "Residual"),
+              datatype = "Proportion", ratio=FALSE,
+              data = coex.part, nboot = 200, 
+              npermut = 0, parallel=TRUE, ncores = 4)
+save.image()
+summary(rep.pPA)
+summary(rep.pPAV)
 
+## Variance of logits of ratios between observed cell counts 
+list(experim1, experim2, experim3, experim4, experim5, experim6, experim7) %>%
+    sapply(function(x) c(sum(x[[1]][,ncol(x[[1]])]), sum(x[[2]][,ncol(x[[2]])]))) %>%
+    t() %>%
+    as.data.frame() %>%
+    mutate(total=V1+V2, ratio=V2/total , lratio=log(ratio/(1-ratio))) %>%
+    summarize(vratio=var(lratio))
