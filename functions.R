@@ -7,7 +7,7 @@ library(tidyr)
 library(rjags)
 library(R2jags)
 
-## Cria matrizes de experimentos x tempo
+## Creates matrices of counts x time
 sel.ind <- function(data, batch.number = 1, time.limit = 20){
     filter(data, Time < time.limit, batch==batch.number) %>%
         mutate(replicate=rep(letters[1:3],length(unique(Time))))%>%
@@ -17,8 +17,8 @@ sel.ind <- function(data, batch.number = 1, time.limit = 20){
         as.matrix()
 }
 
-## Cria uma lista com as matrizes de experimentos x tempo com as contagens
-## para os experimentos com duas especies
+
+## Creates a list of matrices of counts x time for each experiment
 sel.exp <- function(data = comp, batch.number = 1, time.limit = 20){
     Arc <- filter(data, Time < time.limit, batch==batch.number) %>%
         mutate(replicate=rep(letters[1:3],length(unique(Time))))%>%
@@ -70,7 +70,7 @@ post.plot <- function(lista, par.name, transf=FALSE, legend=TRUE, ...){
     }
 }
 
-## Gets the mean and 95% CI of the posterior distributions of the parameters that do not vary in Time
+## Gets the mean and 95% CI of the posterior distributions of the parameters that do not vary in time
 dem.pars <- function(object){
     tmp <- object$BUGSoutput$summary
     df <- data.frame(rA=tmp[grep("rA",rownames(tmp)),][c("mean","sd","2.5%","97.5%","Rhat","n.eff")],
@@ -102,8 +102,7 @@ else
     
 }
 
-## sample from posterior of simulated logistic
-## from estimated lambda
+## sample from posterior of simulated logistic from estimated lambda
 post.logist <- function(obj, nrep=1000){
     results <- matrix(ncol=ncol(obj$BUGSoutput$sims.list$lamb), nrow=nrep)
     for(j in 1:nrep){
@@ -170,7 +169,7 @@ compet1 <- function(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea=0.25
         cbind(lambA, lambP) 
 }
 
-## Simulates the competition dynamics without
+## Simulates the competition dynamics without stochasticity
 compet2 <- function(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea=0.25*90, A0=50, P0=50, obs=TRUE){
     A <- P <- c()
     A[1] <- A0
@@ -233,18 +232,18 @@ sim.compet <- function(obj, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0
         A <- (kA - aAP*kP)/(1-aAP*aPA)
         P <- (kP - aPA*kA)/(1-aAP*aPA)
         estavel <- 1/aPA < kA/kP & kA/kP < aAP
-        ## Solucao analitica no equilibrio
+        ## Analytical solution at equilibrium
         res.a[j,] <- c( A, P, estavel)
-        ## Simulacao com estocasticidade ambiental no intervalo definido em dt
+        ## Simulation with stochasticity at the dt interval
         res.est[,,j] <- compet1(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)
-        ## simulacao sem estocasticidade ambiental (para estocasticidade observacional use obs=TRUE)
+        ## simulacao without stochasticity
         res.no.est[,,j] <- compet2(rA, kA, pA, rP, kP, pP, aPA, aAP, dt, sampArea, totArea, A0, P0, obs=obs)        
     }
     list(analitico=res.a, estocast=res.est, sem.estocast = res.no.est)
 }
 
 
-## Same simulation, but from parameters r and k taken from the pure cultures experiments
+## Same simulation, but using parameters r and k taken from the pure cultures experiments
 sim.compet2 <- function(obj1, obj2, obj3, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0=50, P0=50, nrep=1000, obs=FALSE){
     if(missing(dt))
         dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
@@ -276,7 +275,7 @@ sim.compet2 <- function(obj1, obj2, obj3, data, dt, sampArea=10*pi*0.25^2, totAr
 
 
 
-## Same simulation, but from parameters r and k taken from the pure cultures experiments only for Arcella
+## Same simulation, but using parameters r and k taken from the pure cultures experiments only for Arcella
 sim.compet3 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0=50, P0=50, nrep=1000, obs=FALSE){
     if(missing(dt))
         dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
@@ -304,7 +303,7 @@ sim.compet3 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.2
     list(analitico=res.a, estocast=res.est, sem.estocast = res.no.est)
 }
 
-## Same simulation, but from parameters r and k taken from the pure cultures experiments only for Pixydiculla
+## Same simulation, but using parameters r and k taken from the pure cultures experiments only for Pixydiculla
 sim.compet4 <- function(obj1, obj2, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*90, A0=50, P0=50, nrep=1000, obs=FALSE){
     if(missing(dt))
         dt <- diff(c(0,as.numeric(colnames(data[[1]]))))
@@ -360,7 +359,6 @@ sim.compet.final <- function(obj, data, dt, sampArea=10*pi*0.25^2, totArea=0.25*
 ## Checking if Nash equilibirum occurs from different combinations of parameters
 ## For each combination nrep repetitions of the simulated dynamics is ran and then a payoff matrix is built
 ## from wich Nash equilibrium is checked
-
 sim.Nash <- function(obj1, obj2, obj3, data, dt, sampArea=10*pi*0.25^2,
                      totArea=0.25*90, A0=50, P0=50, nsamp=10, nrep=100, obs=FALSE){
     if(missing(dt))
@@ -434,7 +432,7 @@ sim.Nash <- function(obj1, obj2, obj3, data, dt, sampArea=10*pi*0.25^2,
     return(list(Nashm, Nashp))
 }
 
-## Check Equilibrium
+## Check Equilibrium of the game
 check.eq <- function(LL.A, LH.A, HL.A, HH.A, LL.P, LH.P, HL.P, HH.P, lista){
     if(!missing(lista)){
         LL.A <- lista[["LL.A"]]
@@ -505,7 +503,7 @@ summary.df <- function(fit.obj, data){
         order.by=as.numeric(colnames(data)))
 }
 
-## for competition
+## Zoo object with predicted and observed values for competition
 summary.df2 <- function(fit.obj, experim, k=1){
     tmp <- fit.obj$BUGSoutput$summary
     tmp2 <- post.compet(fit.obj)
@@ -526,7 +524,6 @@ summary.df2 <- function(fit.obj, experim, k=1){
 }
 
 ## Only projected trajectories for competition
-## for competition
 comp.proj <- function(fit.obj, experim, dt, ...){
     tmp <- sim.compet(fit.obj, dt = dt, data = experim, ...)
     zoo(
@@ -540,7 +537,7 @@ comp.proj <- function(fit.obj, experim, dt, ...){
         order.by=cumsum(c(0,dt)))
 }
 
-## Dada uma media e um parametro sigma da lognormal retorna o parametro mu
+## Mean of lognormal distribution
 mu.ln <- function(x,lsd) log(x)-(lsd^2)/2
 
 ## Plots

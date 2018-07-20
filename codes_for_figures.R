@@ -15,7 +15,10 @@ load("cluster/compfit5.RData")
 load("cluster/compfit6.RData")
 load("cluster/compfit7.RData")
 
-## Plots
+## Functions and codes that generated the figures
+## in the paper
+
+## Functions to generate the plots shown in the paper
 ## For logistics
 p1 <- function(zoo.obj, col="blue"){
     zoo.obj %>%
@@ -54,9 +57,6 @@ p3 <- function(zoo.obj){
         scale_x_continuous(name="")+
         theme_bw()
     }
-###
-
-##
 
 f1 <- function(obj, index){
     x <- as.data.frame(summary(as.mcmc(obj)[,c("rA","rP","kA","kP","aAP", "aPA")], quantile=c(0.025,0.5,0.975))[[2]])
@@ -89,9 +89,8 @@ for(i in 1:6)
     tmp1 <- rbind(tmp1, f2(lista2[[i]], exps[i], sps[i]))
 
 
-
-
 ################################################################################
+## Figures as in the paper
 ## ----single species obs x pred, fig.height=12----------------------------
 pdf("growth.pdf", width=9, height = 9)
 pP1 <- p1(summary.df(fit.P1, data=pyx1)) + ggtitle("P. operculata")
